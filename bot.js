@@ -62,14 +62,18 @@ bot.on('new_chat_members', (msg) => {
         var welcomeMessage = `${greeting} ${name} \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
 
         bot.sendMessage(chatId, welcomeMessage);
-        console.log(JSON.stringify(`${(new Date).toLocaleString('ru')} | ${welcomeMessage} \n=========================`, msg, null, 2));
+        
+        console.log(`${(new Date).toLocaleString('ru')} | ${welcomeMessage} \n=========================`);
+        console.log(JSON.stringify(msg, null, 2));
     })
 });
 
 bot.onText(/\/hi/, async (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId, 'Привет! Я Jangseung - тотем этой группы. Я отпугиваю злых духов и приманиваю хороших участников');
-    console.log(JSON.stringify(`${(new Date).toLocaleString('ru')}\n=========================`, msg, null, 2));
+    
+    console.log(`${(new Date).toLocaleString('ru')}\n=========================`);
+    console.log(JSON.stringify(msg, null, 2));
 });
 
 bot.on('polling_error', (error) => {
