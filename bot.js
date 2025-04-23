@@ -11,7 +11,8 @@ bot.onText(/\/status/, async (msg) => {
 });
 
 bot.on('polling_error', (error) => {
-    console.error('Polling error:', error);
+    var t = `${new Date.toGMTString()}`;
+    console.error(`${t} Polling error:`, error);
   });
   
 console.log('Bot started...');
