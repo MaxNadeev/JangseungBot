@@ -62,18 +62,18 @@ bot.on('new_chat_members', (msg) => {
         var welcomeMessage = `${greeting} ${name} \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
 
         bot.sendMessage(chatId, welcomeMessage);
-        console.log(JSON.stringify(`${(new Date).toGMTString()} ${welcomeMessage} \n=========================`, msg, null, 2));
+        console.log(JSON.stringify(`${(new Date).toLocaleString()} ${welcomeMessage} \n=========================`, msg, null, 2));
     })
 });
 
 bot.onText(/\/hi/, async (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId, 'Привет! Я Jangseung - тотем этой группы. Я отпугиваю злых духов и приманиваю хороших участников');
-    console.log(JSON.stringify(`${(new Date).toGMTString()} :\n=========================`, msg, null, 2));
+    console.log(JSON.stringify(`${(new Date).toLocaleString()} :\n=========================`, msg, null, 2));
 });
 
 bot.on('polling_error', (error) => {
-    console.error(`${(new Date).toGMTString()} Polling error:`, error);
+    console.error(`${(new Date).toLocaleString()} Polling error:`, error);
   });
   
-console.log(`${(new Date).toGMTString()} Bot started...`);
+console.log(`${(new Date).toLocaleString()} Bot started...`);
