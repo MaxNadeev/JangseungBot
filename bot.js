@@ -15,6 +15,7 @@ bot.on('new_chat_members', (msg) => {
         var lastName = member.last_name;
         var username = member.username;
         var id = member.id;
+        //var premium = member.is_premium;
         var language = member.language_code;
         
         // firstName && lastName   ? name = `${firstName} ${lastName}` 
@@ -34,32 +35,7 @@ bot.on('new_chat_members', (msg) => {
             name = `id ${id}`;
         }
 
-        switch (language) {
-            case "ru":
-            case "ru-ru":
-                greeting = 'Привет';
-                break;
-            case 'en':
-            case 'en-us':
-            case 'en-gb':
-                greeting = 'Hello!';
-                break;
-            case 'ar':
-                greeting = 'مرحبا!';
-                break;
-            case 'zh':
-                case 'zh-cn':
-                greeting = '你好!';
-                break;
-            case 'ko':
-            case 'ko-kr':
-                greeting = '안녕하세요!';
-                break;
-            default:
-                greeting = 'Привет! Hi! 안녕하세요';
-        }
-
-        var welcomeMessage = `${greeting} ${name} \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+        var welcomeMessage = `${name}, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
 
         bot.sendMessage(chatId, welcomeMessage);
         
