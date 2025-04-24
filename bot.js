@@ -1,8 +1,13 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.SECRET_KEY;
+const loadJson = require('./jsonManager');
+
+var spamRules = loadJson('spamRules.json');
 
 const bot = new TelegramBot(token, { polling:true });
+
+console.log(spamRules.triggerWords);
 
 bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
@@ -16,7 +21,6 @@ bot.on('new_chat_members', (msg) => {
         var username = member.username;
         var id = member.id;
         //var premium = member.is_premium;
-        var language = member.language_code;
         var welcomeMessage;
         
         // firstName && lastName   ? name = `${firstName} ${lastName}` 
@@ -56,6 +60,10 @@ bot.onText(/\/hi/, async (msg) => {
     console.log(`${(new Date).toLocaleString('ru')}\n=========================`);
     console.log(JSON.stringify(msg, null, 2));
 });
+
+// function hasSpamWords (text) {
+
+// }
 
 bot.on('polling_error', (error) => {
     console.error(`${(new Date).toLocaleString('ru')} | Polling error:`, error);
