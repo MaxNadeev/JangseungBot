@@ -4,6 +4,7 @@ function loadJson(path) {
     try {
         const data = fs.readFileSync(path, 'utf8'); // Синхронное чтение
         const jsonData = JSON.parse(data);
+        console.log("loadJson made his job: ", jsonData)
         return jsonData;
     } catch (err) {
         console.error('Error in jsonManager:', err);

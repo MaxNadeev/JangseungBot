@@ -7,7 +7,7 @@ var spamRules = loadJson('./spamRules.json');
 
 const bot = new TelegramBot(token, { polling:true });
 
-console.log(spamRules.triggerWords);
+console.log("TriggerWords: ", spamRules.triggerWords);
 
 bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
