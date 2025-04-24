@@ -17,6 +17,7 @@ bot.on('new_chat_members', (msg) => {
         var id = member.id;
         //var premium = member.is_premium;
         var language = member.language_code;
+        var welcomeMessage;
         
         // firstName && lastName   ? name = `${firstName} ${lastName}` 
         //     : firstName         ? name = firstName 
@@ -29,13 +30,17 @@ bot.on('new_chat_members', (msg) => {
             name = firstName;
         } else if (lastName){
             name = lastName;
+        } 
+        
+        if (name && username){
+            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a><b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+        } else if (name){
+            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         } else if (username){
-            name = username;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">@${username}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         } else {
-            name = `id ${id}`;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         }
-
-        var welcomeMessage = `${name}, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
 
         bot.sendMessage(chatId, welcomeMessage);
         
