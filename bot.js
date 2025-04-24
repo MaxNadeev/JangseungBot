@@ -3,7 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.SECRET_KEY;
 const loadJson = require('./jsonManager');
 
-var spamRules = loadJson('spamRules.json');
+var spamRules = loadJson('./spamRules.json');
 
 const bot = new TelegramBot(token, { polling:true });
 
@@ -37,13 +37,13 @@ bot.on('new_chat_members', (msg) => {
         } 
         
         if (name && username){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a><b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         } else if (name){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         } else if (username){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">@${username}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">@${username}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         } else {
-            welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+            welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         }
 
         bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
