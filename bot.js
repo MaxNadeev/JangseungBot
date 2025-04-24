@@ -42,7 +42,7 @@ bot.on('new_chat_members', (msg) => {
             welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a><b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
         }
 
-        bot.sendMessage(chatId, welcomeMessage);
+        bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
         
         console.log(`${(new Date).toLocaleString('ru')} | ${welcomeMessage} \n=========================`);
         console.log(JSON.stringify(msg, null, 2));
