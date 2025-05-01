@@ -1,15 +1,14 @@
-const fs = require('fs'); // Импортируем стандартный fs, а не fs.promises
+const fs = require('fs');
 
-function loadJson(path) {
+function loadRules(path) {
     try {
-        const data = fs.readFileSync(path, 'utf8'); // Синхронное чтение
+        const data = fs.readFileSync(path, 'utf8');
         const jsonData = JSON.parse(data);
-        console.log("loadJson made his job: ", jsonData)
         return jsonData;
     } catch (err) {
         console.error('Error in jsonManager:', err);
-        throw err; // Пробрасываем ошибку дальше
+        throw err;
     }
 }
 
-module.exports = loadJson;
+module.exports = { loadRules };

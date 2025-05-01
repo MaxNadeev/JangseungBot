@@ -1,13 +1,14 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const token = process.env.SECRET_KEY;
-const loadJson = require('./jsonManager');
+const adminId = process.env.ADMIN_ID;
+const jsonManager = require('./jsonManager');
 
-var spamRules = loadJson('./spamRules.json');
+var spamRules = jsonManager.loadRules('spamRules.json');
 
 const bot = new TelegramBot(token, { polling:true });
 
-console.log("TriggerWords: ", spamRules.triggerWords);
+console.log("TriggerWords: ", spamRules.triggerWords);/////////////////////
 
 bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
@@ -15,7 +16,6 @@ bot.on('new_chat_members', (msg) => {
 
     newMembers.forEach(member => {
         var name;
-        var greeting;
         var firstName = member.first_name;
         var lastName = member.last_name;
         var username = member.username;
@@ -34,7 +34,7 @@ bot.on('new_chat_members', (msg) => {
             name = firstName;
         } else if (lastName){
             name = lastName;
-        } 
+        }
         
         if (name && username){
             welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
@@ -51,6 +51,11 @@ bot.on('new_chat_members', (msg) => {
         console.log(`${(new Date).toLocaleString('ru')} | ${welcomeMessage} \n=========================`);
         console.log(JSON.stringify(msg, null, 2));
     })
+});
+
+bot.onText('message', (msg) => {
+    var logMsg = JSON.stringify(msg);
+    bot.sendMessage(adminId, `${(new Date).toLocaleString('ru')}\n${logMsg}`);
 });
 
 bot.onText(/\/hi/, async (msg) => {
