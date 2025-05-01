@@ -54,7 +54,7 @@ bot.on('new_chat_members', (msg) => {
     })
 });
 
-bot.onText('message', async (msg) => {
+bot.onText(/.*/, async (msg) => {
     console.log('chat id is: ', msg.chat.id.toString());
     console.log('admin id is: ', adminId);
     if (msg.chat.id.toString() !== adminId) {
