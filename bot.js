@@ -53,9 +53,13 @@ bot.on('new_chat_members', (msg) => {
     })
 });
 
-bot.onText('message', (msg) => {
-    var logMsg = JSON.stringify(msg);
-    bot.sendMessage(adminId, `${(new Date).toLocaleString('ru')}\n${logMsg}`);
+bot.onText('text', (msg) => {
+    if (msg.chat.id.toString() !== adminId) {
+        const logMsg = JSON.stringify(msg, null, 2);
+        bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
+            parse_mode: 'HTML'
+        });
+    }
 });
 
 bot.onText(/\/hi/, async (msg) => {
