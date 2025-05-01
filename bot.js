@@ -54,13 +54,13 @@ bot.on('new_chat_members', (msg) => {
     })
 });
 
-bot.onText('text', (msg) => {
+bot.onText('text', async (msg) => {
     console.log('chat id is: ', msg.chat.id.toString());
     console.log('admin id is: ', adminId);
     if (msg.chat.id.toString() !== adminId) {
         const logMsg = JSON.stringify(msg, null, 2);
         console.log(logMsg);
-        bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
+        await bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
             parse_mode: 'HTML'
         });
     }
