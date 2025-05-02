@@ -15,7 +15,8 @@ bot.on('new_chat_members', (msg) => {
     const newMembers = msg.new_chat_members;
 
     const logMsg = JSON.stringify(msg, null, 2);
-    bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
+    bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>\n
+            #Пополнение #${msg.chat.username} #${msg.from.username || ('id' + msg.from.id + ' #БЕЗusername')}`, {
         parse_mode: 'HTML'
     });
 
@@ -58,7 +59,8 @@ bot.on('new_chat_members', (msg) => {
 bot.onText(/.*/, async (msg) => {
     if (msg.chat.id.toString() !== adminId) {
         const logMsg = JSON.stringify(msg, null, 2);
-        await bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
+        await bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>\n
+            #Сообщение #${msg.chat.username} #${msg.from.username || ('id' + msg.from.id + ' #БЕЗusername')}`, {
             parse_mode: 'HTML'
         });
     }
@@ -78,6 +80,14 @@ bot.onText(/\/hi/, async (msg) => {
 
 bot.on('polling_error', (error) => {
     console.error(`${(new Date).toLocaleString('ru')} | Polling error:`, error);
-  });
-  
-console.log(`${(new Date).toLocaleString('ru')} | Bot started...`);
+});
+
+botStartReport();
+
+function botStartReport () {
+    var startDate = (new Date).toLocaleString('ru');
+    console.log(`${startDate} | Bot started...`);
+    bot.sendMessage(adminId, `Бот стартанул ${startDate}\n#Старт`, {
+        parse_mode: 'HTML'
+    });
+};
