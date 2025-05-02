@@ -14,7 +14,8 @@ bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
     const newMembers = msg.new_chat_members;
 
-    bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${msg}</code>`, {
+    const logMsg = JSON.stringify(msg, null, 2);
+    bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
         parse_mode: 'HTML'
     });
 
