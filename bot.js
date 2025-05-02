@@ -9,11 +9,14 @@ var spamRules = jsonManager.loadRules('spamRules.json');
 const bot = new TelegramBot(token, { polling:true });
 
 //console.log("TriggerWords: ", spamRules.triggerWords);/////////////////////
-console.log('admin id is: ', adminId);
 
 bot.on('new_chat_members', (msg) => {
     const chatId = msg.chat.id;
     const newMembers = msg.new_chat_members;
+
+    bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${msg}</code>`, {
+        parse_mode: 'HTML'
+    });
 
     newMembers.forEach(member => {
         var name;
@@ -48,18 +51,12 @@ bot.on('new_chat_members', (msg) => {
         }
 
         bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
-        
-        console.log(`${(new Date).toLocaleString('ru')} | ${welcomeMessage} \n=========================`);
-        console.log(JSON.stringify(msg, null, 2));
     })
 });
 
 bot.onText(/.*/, async (msg) => {
-    console.log('chat id is: ', msg.chat.id.toString());
-    console.log('admin id is: ', adminId);
     if (msg.chat.id.toString() !== adminId) {
         const logMsg = JSON.stringify(msg, null, 2);
-        console.log(logMsg);
         await bot.sendMessage(adminId, `Новое сообщение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>`, {
             parse_mode: 'HTML'
         });
@@ -70,8 +67,8 @@ bot.onText(/\/hi/, async (msg) => {
     const chatId = msg.chat.id;
     bot.sendMessage(chatId, 'Привет! Я Jangseung - тотем этой группы. Я отпугиваю злых духов и приманиваю хороших участников');
     
-    console.log(`${(new Date).toLocaleString('ru')}\n=========================`);
-    console.log(JSON.stringify(msg, null, 2));
+    // console.log(`${(new Date).toLocaleString('ru')}\n=========================`);
+    // console.log(JSON.stringify(msg, null, 2));
 });
 
 // function hasSpamWords (text) {
