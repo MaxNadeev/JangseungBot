@@ -12,16 +12,18 @@ const bot = new TelegramBot(token, { polling:true });
 
 //console.log("TriggerWords: ", spamRules.triggerWords);/////////////////////
 
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 const handleNewMembers = (msg) => {
     var chatId = msg.chat.id;
     var newMembers = msg.new_chat_members || [];
-    var fromUser = msg.from || { username: 'unknown, id: 0' };
+    var fromUser = msg.from || { username: 'unknown', id: 0 };
     var logMsg = JSON.stringify(msg, null, 2);
 
     if (newMembers.length === 0) return;
 
     newMembers.forEach(async (member, index) => {
-        await delay(index * 1000); //Антифлуд
+        await delay(index * 1000); // Антифлуд
 
         var name = [member.first_name, member.last_name].filter(Boolean).join(' ');
         var username = member.username ? `@${member.username}` : '';
@@ -29,7 +31,8 @@ const handleNewMembers = (msg) => {
 
         var welcomeMessage = `<b>${userLink}</b>, Привет! Hi! 안녕하세요\n\n🗣: 🇷🇺🇬🇧🇰🇷`;
 
-        bot.sendMessage(chatId, welcomeMessage, {parse_mode: 'HTML'});
+        bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
+        
         if (membersLogging) {
             bot.sendMessage(
                 adminId,
@@ -42,7 +45,7 @@ const handleNewMembers = (msg) => {
     });
 };
 
-bot.on('new_chat_members', hangleNewMembers);
+bot.on('new_chat_members', handleNewMembers);
 bot.on('new_chat_participant', (msg) => {
     msg.new_chat_members = [msg.new_chat_participant];
     handleNewMembers(msg);
