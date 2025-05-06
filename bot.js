@@ -12,7 +12,7 @@ const bot = new TelegramBot(token, { polling:true });
 
 //console.log("TriggerWords: ", spamRules.triggerWords);/////////////////////
 
-var handleNewMembers = (msg) => {
+const handleNewMembers = (msg) => {
     var chatId = msg.chat.id;
     var newMembers = msg.new_chat_members || [];
     var fromUser = msg.from || { username: 'unknown, id: 0' };
@@ -48,51 +48,51 @@ bot.on('new_chat_participant', (msg) => {
     handleNewMembers(msg);
 });
 
-bot.on('new_chat_members', (msg) => {
-    const chatId = msg.chat.id;
-    const newMembers = msg.new_chat_members;
-    const logMsg = JSON.stringify(msg, null, 2);
+// bot.on('new_chat_members', (msg) => {
+//     const chatId = msg.chat.id;
+//     const newMembers = msg.new_chat_members;
+//     const logMsg = JSON.stringify(msg, null, 2);
     
-    newMembers.forEach(member => {
-        var name;
-        var firstName = member.first_name;
-        var lastName = member.last_name;
-        var username = member.username;
-        var id = member.id;
-        //var premium = member.is_premium;
-        var welcomeMessage;
+//     newMembers.forEach(member => {
+//         var name;
+//         var firstName = member.first_name;
+//         var lastName = member.last_name;
+//         var username = member.username;
+//         var id = member.id;
+//         //var premium = member.is_premium;
+//         var welcomeMessage;
         
-        // firstName && lastName   ? name = `${firstName} ${lastName}` 
-        //     : firstName         ? name = firstName 
-        //     : lastName          ? name = lastName 
-        //     :                     name = member.id
+//         // firstName && lastName   ? name = `${firstName} ${lastName}` 
+//         //     : firstName         ? name = firstName 
+//         //     : lastName          ? name = lastName 
+//         //     :                     name = member.id
         
-        bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>\n
-                #Пополнение #${msg.chat.username} #${msg.from.username || ('id' + msg.from.id + ' #БЕЗusername')}`, {
-            parse_mode: 'HTML'
-        });
+//         bot.sendMessage(adminId, `Пополнение в чате ${msg.chat.title || 'без названия'}:\n<code>${logMsg}</code>\n
+//                 #Пополнение #${msg.chat.username} #${msg.from.username || ('id' + msg.from.id + ' #БЕЗusername')}`, {
+//             parse_mode: 'HTML'
+//         });
         
-        if (firstName && lastName){
-            name = `${firstName} ${lastName}`;
-        } else if (firstName){
-            name = firstName;
-        } else if (lastName){
-            name = lastName;
-        }
+//         if (firstName && lastName){
+//             name = `${firstName} ${lastName}`;
+//         } else if (firstName){
+//             name = firstName;
+//         } else if (lastName){
+//             name = lastName;
+//         }
         
-        if (name && username){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
-        } else if (name){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
-        } else if (username){
-            welcomeMessage = `<b><a href="tg://user?id=${id}">@${username}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
-        } else {
-            welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
-        }
+//         if (name && username){
+//             welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b> (@${username}), Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+//         } else if (name){
+//             welcomeMessage = `<b><a href="tg://user?id=${id}">${name}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+//         } else if (username){
+//             welcomeMessage = `<b><a href="tg://user?id=${id}">@${username}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+//         } else {
+//             welcomeMessage = `<b><a href="tg://user?id=${id}">Участник с id ${id}</a></b>, Привет! Hi! 안녕하세요 \n\n🗣: 🇷🇺🇬🇧🇰🇷`;
+//         }
 
-        bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
-    })
-});
+//         bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'HTML' });
+//     })
+// });
 
 bot.onText(/.*/, async (msg) => {
     if (messageLogging) {
