@@ -38,7 +38,8 @@ const handleNewMembers = (msg) => {
                 adminId,
                 `Пополнение в чате ${msg.chat.title || 'без названия'}:\n` +
                 `Добавил: ${fromUser.username ? '@' + fromUser.username : 'id' + fromUser.id}\n` +
-                `Новые участники: ${newMembers.map(m => m.username ? '@' + m.username : m.id).join(', ')}`,
+                `Новые участники: ${newMembers.map(m => m.username ? '@' + m.username : 'id' + m.id).join(', ')}\n` +
+                `#Пополнение: ${newMembers.map(m => m.username ? '#' + m.username : '#id' + m.id + ' #БЕЗusername').join(', ')}`,
                 { parse_mode: 'HTML' }
             );
         }
@@ -49,6 +50,21 @@ bot.on('new_chat_members', handleNewMembers);
 bot.on('new_chat_participant', (msg) => {
     msg.new_chat_members = [msg.new_chat_participant];
     handleNewMembers(msg);
+});
+
+bot.on('left_chat_member', (msg) => {
+    var { left_chat_member: user, chat, from } = msg;
+
+    if (user.id === bot.getMe().id) return;
+
+    var userName = user.first_name || user.username || `c id ${user.id}`;
+    var isKicked = from.id !== user.id;
+    var action = isKicked ? "был исключён" : "покинул чат";
+    var who = isKicked ? ` (администратором @${from.username || from.id})` : '';
+
+    const message = `🚪 Пользователь <b>${userName}</b> ${action}${who}.`;
+    bot.sendMessage(chat.id, message, { parse_mode: 'HTML' });
+    bot.sendMessage(adminId, message, { parse_mode: 'HTML' });
 });
 
 // bot.on('new_chat_members', (msg) => {
