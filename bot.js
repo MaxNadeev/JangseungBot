@@ -128,6 +128,7 @@ bot.onText('membersLogging', async (msg) => {
 
 bot.on('polling_error', (error) => {
     console.error(`${(new Date).toLocaleString('ru')} | Polling error:`, error);
+    logger.writeErrorReport(error);
 });
 
 logger.botStartReport();
