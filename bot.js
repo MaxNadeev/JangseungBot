@@ -4,7 +4,7 @@ const token = process.env.SECRET_KEY;
 const jsonManager = require('./jsonManager');
 const Logger = require('./logger');
 
-var spamRules = jsonManager.loadRules('spamRules.json');
+// var spamRules = jsonManager.loadRules('spamRules.json');
 
 const bot = new TelegramBot(token, { 
     polling:true,
