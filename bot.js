@@ -130,4 +130,4 @@ bot.on('polling_error', (error) => {
     console.error(`${(new Date).toLocaleString('ru')} | Polling error:`, error);
 });
 
-botStartReport(); // если была ошибка то вывести что предыдущая остановка была аварийная
+logger.botStartReport();
