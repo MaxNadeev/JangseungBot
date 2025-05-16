@@ -127,8 +127,8 @@ bot.onText('membersLogging', async (msg) => {
 // }
 
 bot.on('polling_error', (error) => {
-    var errText = `${(new Date).toLocaleString('ru')} | Polling error:\n\n<code>${error}</code>)`;
-    logger.writeErrorReport(errText);
+    var errText = `${(new Date).toLocaleString('ru')} | Polling error:)`;
+    logger.logUnlistedError(errText, error);
 });
 
 logger.botStartReport();
