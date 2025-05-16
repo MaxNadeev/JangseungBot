@@ -266,12 +266,12 @@ class Logger {
         }
         try {
             var date = (new Date).toLocaleString('ru');
-            var text = `Ошибка [${date}]: ${error}`;
-            await fs.writeFile(this.reportPath, text, 'utf-8');
-            message = 'Успешно записана ошибка в файл';
+            var errText = `Ошибка [${date}]: ${error}`;
+            await fs.writeFile(this.reportPath, errText, 'utf-8');
+            message = `Успешно записана ошибка в файл\n\n<code>${errText}</code>`;
             await this.sendToAdmin(message);
-        } catch (error) {
-            message = `Не удалось записать ошибку в файл\n\n<code>${error}</code>`;
+        } catch (err) {
+            message = `Не удалось записать ошибку ${errText} в файл\n\n<code>${err}</code>`;
             await this.sendToAdmin(message);
         };
     };
