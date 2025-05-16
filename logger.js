@@ -1,5 +1,5 @@
 const fs = require('fs/promises');
-const JSONManager = require('./jsonManager');
+const { JsonManager } = require('./jsonManager'); // Изменен импорт
 require('dotenv').config();
 
 class Logger {
@@ -12,7 +12,7 @@ class Logger {
         this.reportPath = './reportError.txt';
     };
 
-    async sendToAdmin (message) {
+    async sendToAdmin(message) {
         try {
             await this.bot.sendMessage(this.adminId, message, { parse_mode: 'HTML' });
         } catch (error) {
@@ -21,13 +21,12 @@ class Logger {
         };
     };
 
-
     // CONFIG
 
     async loadConfig() {
         var message;
         try {
-            var config = await JSONManager.read(this.configPath);
+            var config = await JsonManager.read(this.configPath);
             if (!config?.logging) {
                 throw new Error('Invalid config: missing "logging" section');
             }
@@ -35,20 +34,17 @@ class Logger {
             this.membersLogging = config.logging.members;
             message = 'Logger config loaded';
         } catch (error) {
-            message = `Error: Logger config NOT loaded\n
-            <code>${error}</code>`;
+            message = `Error: Logger config NOT loaded\n<code>${error}</code>`;
         }
 
         message ||= 'Warning: loadConfig message is empty';
         await this.sendToAdmin(message);
-        
     };
 
     async writeConfig(parameter) {
         var message;
         try {
-            await JSONManager.write(this.configPath, parameter);
-            message = 'Config wrote';
+            await JsonManager.write(this.configPath, parameter);
         } catch (error) {
             message = `Error: Could not write config\n'<code>${error}</code>`;
         }
@@ -249,11 +245,15 @@ class Logger {
         try {
             const data = await fs.readFile(this.reportPath, 'utf-8');
             message = `Прошлая сессия завершилась без ошибок:\n\n<code>${data}</code>`;
-            await this.sendToAdmin(message);
         } catch (err) {
-            message = `Ошибка: Отчёт не найден:\n\n<code>${err}</code>\n\n#Отчёт`;
-            await this.sendToAdmin(message);
+            if (err.code === 'ENOENT') {
+                message = 'Отчёт не найден, вероятно это первый запуск или ошибок не было';
+            } else {
+                message = `Ошибка при чтении отчёта:\n\n<code>${err}</code>\n\n#Отчёт`;
+            }
         }
+        await this.sendToAdmin(message);
+        return message; // Добавлен возврат сообщения для использования в botStartReport
     };
 
     async writeErrorReport(error) {

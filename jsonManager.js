@@ -1,25 +1,27 @@
-const fs = require('fs');
+const fs = require('fs/promises');
 
-class jsonManager {
+class JsonManager {
     static async read(path) {
         try {
-            var data = await fs.promises.readFile(path, 'utf8');
+            const data = await fs.readFile(path, 'utf8');
             return JSON.parse(data);
         } catch (err) {
-            console.error('Error of Read JSON:', err);
+            console.error('Error reading JSON:', err);
             throw err;
         }
     }
     
     static async write(path, data) {
         try {
-            var jsonString = JSON.stringify(data, null, 2);
-            await fs.promises.writeFile(path, jsonString, 'utf8');
+            const jsonString = JSON.stringify(data, null, 2);
+            await fs.writeFile(path, jsonString, 'utf8');
         } catch (err) {
-            console.error('Error of writing JSON: ', err);
+            console.error('Error writing JSON:', err);
             throw err;
         }
     }
+
+
 
     // static async update(path, modifier) {
     //     var data = await this.read(path);
@@ -29,5 +31,4 @@ class jsonManager {
     // }
 }
 
-
-module.exports = { jsonManager };
+module.exports = { JsonManager };
