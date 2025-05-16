@@ -241,19 +241,16 @@ class Logger {
     };
 
     async readErrorReport() {
-        var message;
         try {
-            const data = await fs.readFile(this.reportPath, 'utf-8');
-            message = `Прошлая сессия завершилась без ошибок:\n\n<code>${data}</code>`;
+            return await fs.readFile(this.reportPath, 'utf-8');
         } catch (err) {
-            if (err.code === 'ENOENT') {
-                message = 'Отчёт не найден, вероятно это первый запуск или ошибок не было';
-            } else {
-                message = `Ошибка при чтении отчёта:\n\n<code>${err}</code>\n\n#Отчёт`;
-            }
+            const message = err.code === 'ENOENT'
+                ? 'Файл отчёта не получен, вероятно это первый запуск или ошибок не было'
+                : `Ошибка при чтении отчёта:\n\n<code>${err}</code>\n\n#Отчёт`;
+            
+            await this.sendToAdmin(message);
+            return null; // Явно возвращаем null при ошибке
         }
-        await this.sendToAdmin(message);
-        return message; // Добавлен возврат сообщения для использования в botStartReport
     };
 
     async writeErrorReport(error) {
@@ -275,14 +272,13 @@ class Logger {
         };
     };
 
-    async botStartReport () {
-        var startDate = (new Date).toLocaleString('ru');
-        var message;
-        var errorReport = await this.readErrorReport();
+    async botStartReport() {
+        const startDate = new Date().toLocaleString('ru');
+        let message;
+        const errorReport = await this.readErrorReport();
         
-        if (errorReport) {
-            message = `Бот стартанул ${startDate}\nПредыдущая остановка была вызвана ошибкой:\n
-            <code>${errorReport}</code>\n#Старт #Ошибка`;
+        if (errorReport && errorReport.trim()) {
+            message = `Бот стартанул ${startDate}\nПредыдущая остановка была вызвана ошибкой:\n<code>${errorReport}</code>\n#Старт #Ошибка`;
         } else {
             message = `Бот стартанул ${startDate}\n#Старт`;
         }
