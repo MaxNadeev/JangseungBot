@@ -59,6 +59,14 @@ class Logger {
             this[param] = !this[param];
             
             message = `${param}: ${this[param]}\n#Настройки`;
+            var data = {
+                "logging":
+                {
+                    "members": this.membersLogging,
+                    "messages": this.messagesLogging
+                }
+            }
+            JsonManager.write(this.configPath, data);
         }
 
         message ||= 'Warning: changeParam message is empty';
