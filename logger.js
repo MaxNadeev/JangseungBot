@@ -256,7 +256,6 @@ class Logger {
         var data;
         try {
             data = await fs.readFile(this.reportPath, 'utf-8');
-            this.writeErrorReport('');
         } catch (err) {
             const message = err.code === 'ENOENT'
                 ? 'Файл отчёта не получен, вероятно это первый запуск или ошибок не было'
@@ -264,8 +263,8 @@ class Logger {
             
             await this.sendToAdmin(message);
             data = null;
-            this.writeErrorReport('');
         }
+        this.deleteErrorReport()
         return data;
     };
 
@@ -286,6 +285,14 @@ class Logger {
             message = `Не удалось записать ошибку ${errText} в файл\n\n<code>${err}</code>`;
             await this.sendToAdmin(message);
         };
+    };
+
+    async deleteErrorReport() {
+        try {
+            await fs.rm(this.reportPath);
+          } catch (err) {
+            this.logError('Ошибка удаления файла с ошибками: ', err);
+          }
     };
 
     async botStartReport() {
