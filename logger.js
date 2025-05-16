@@ -240,6 +240,10 @@ class Logger {
             
     };
 
+
+    // ANOTHER
+
+
     async readErrorReport() {
         var data;
         try {
@@ -291,7 +295,11 @@ class Logger {
         await this.sendToAdmin(message);
     };
 
-    async logUnlistedError (text, error) {
+    async botStopReport() {
+
+    }
+
+    async logError (text, error) {
         var message = `${text} ${error}\n#Ошибка`;
         await this.sendToAdmin(message);
     };
