@@ -40,12 +40,14 @@ const statusTransitions = {
 };
 
 bot.on('chat_member', async (msg) => {
+    console.log('chat_member'); ///////////////////////////////////
     var { old_chat_member, new_chat_member } = msg.chat_member;
     var member = new_chat_member.user;
     var oldStatus = old_chat_member.status;
     var newStatus = new_chat_member.status;
 
     var handler = statusTransitions[oldStatus]?.[newStatus];
+    console.log('member: ', member, 'oldStatus: ', oldStatus, 'newStatus: ', newStatus); ////////////////////
     if (handler) {
         await logger[handler](member, msg);
     }
