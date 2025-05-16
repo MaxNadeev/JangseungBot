@@ -241,16 +241,20 @@ class Logger {
     };
 
     async readErrorReport() {
+        var data;
         try {
-            return await fs.readFile(this.reportPath, 'utf-8');
+            data = await fs.readFile(this.reportPath, 'utf-8');
+            this.writeErrorReport('');
         } catch (err) {
             const message = err.code === 'ENOENT'
                 ? 'Файл отчёта не получен, вероятно это первый запуск или ошибок не было'
                 : `Ошибка при чтении отчёта:\n\n<code>${err}</code>\n\n#Отчёт`;
             
             await this.sendToAdmin(message);
-            return null; // Явно возвращаем null при ошибке
+            data = null;
+            this.writeErrorReport('');
         }
+        return data;
     };
 
     async writeErrorReport(error) {
