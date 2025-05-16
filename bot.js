@@ -51,8 +51,13 @@ bot.on('chat_member', async (msg) => {
     }
 });
 
+const commands = ['messagesLogging', 'membersLogging'];
+
 bot.onText(/.*/, async (msg) => {
-    logNewMessage(msg);
+    if (commands.includes(msg.text)) {
+        logger.changeParam(msg.text);
+    }
+    logger.logNewMessage(msg);
 });
 
 bot.onText(/\/hi/, async (msg) => {
@@ -60,14 +65,6 @@ bot.onText(/\/hi/, async (msg) => {
     var message = 'Привет! Я Jangseung - тотем этой группы. Я отпугиваю злых духов и приманиваю хороших участников';
     bot.sendMessage(chatId, message);
 });
-
-bot.onText('messagesLogging', async (msg) => {
-    changeParam('messagesLogging');
-})
-
-bot.onText('membersLogging', async (msg) => {
-    changeParam('membersLogging');
-})
 
 // function hasSpamWords (text) {
 
