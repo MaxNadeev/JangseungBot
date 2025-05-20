@@ -1,7 +1,7 @@
 {
     "logging":
     {
-        "members": false,
+        "members": true,
         "messages": false
     }
 }

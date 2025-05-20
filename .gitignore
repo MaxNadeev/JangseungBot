@@ -1,3 +1,4 @@
-dataset.txt
 .env
 node_modules/
+examples/
+data/users.json
