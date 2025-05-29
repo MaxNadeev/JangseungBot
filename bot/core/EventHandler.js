@@ -1,5 +1,5 @@
 import { Api } from 'telegram';
-import Store from '../utils/store.js';
+import Store from '../utils/Store.js';
 
 class EventHandler {
     #client = null;

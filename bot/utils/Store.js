@@ -4,6 +4,7 @@ class Store {
     constructor() {
         this.triggerWords = new Set();
         this.linkIndicators = new Set();
+        this.symbols = new Set();
         this.minLength = null;
     }
 
@@ -11,10 +12,18 @@ class Store {
         try {
             var triggers = await JsonManager.read('./data/triggers.json');
             if (triggers) {
+                // Загрузка триггерных слов
                 triggers.triggerWords.forEach(word => 
                     this.triggerWords.add(this.normalizeWord(word)));
+                
+                // Загрузка индикаторов ссылок
                 triggers.linkIndicators.forEach(link => 
                     this.linkIndicators.add(link.toLowerCase()));
+                
+                // Загрузка символов
+                triggers.symbols.forEach(symbol => 
+                    this.symbols.add(symbol));
+                
                 this.minLength = triggers.additionalRules?.minLength || null;
                 console.log('Triggers loaded. Min length:', this.minLength);
             }
@@ -28,28 +37,20 @@ class Store {
     }
 
     сheckMessage(text) {
-
         if (!text) return false;
         if (this.minLength && text.length < this.minLength) return false;
 
         var normalizedText = text.toLowerCase();
         
-        // Создаем Set слов из сообщения, очищая от пунктуации
-        var words = new Set(
-            normalizedText
-                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
-                .split(/\s+/)
-        );
-
-        // Проверяем триггерные слова
-        for (var word of this.triggerWords) {
-            if (words.has(word)) {
-                console.log('word:', word);
+        // Быстрая проверка на символы (первым делом)
+        for (var symbol of this.symbols) {
+            if (text.includes(symbol)) {
+                console.log('symbol:', symbol);
                 return true;
             }
         }
 
-        // Проверка ссылок (отдельная логика, так как ищем подстроки)
+        // Быстрая проверка ссылок (вторым делом)
         for (var link of this.linkIndicators) {
             if (normalizedText.includes(link)) {
                 console.log('link:', link);
@@ -57,8 +58,22 @@ class Store {
             }
         }
 
+        // Проверка триггерных слов (только если не найдены символы и ссылки)
+        var words = new Set(
+            normalizedText
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+                .split(/\s+/)
+        );
+
+        for (var word of this.triggerWords) {
+            if (words.has(word)) {
+                console.log('word:', word);
+                return true;
+            }
+        }
+
         return false;
-}
+    }
 }
 
 export default Store;

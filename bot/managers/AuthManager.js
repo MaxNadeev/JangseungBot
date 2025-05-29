@@ -18,8 +18,8 @@ class AuthManager {
             });
 
             var sessionString = this.#client.session.save();
-            console.log('Save this session string to avoid re-login:');
-            console.log(sessionString);
+            // console.log('Save this session string to avoid re-login:');
+            // console.log(sessionString);
         }
     }
 

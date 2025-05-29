@@ -2,16 +2,13 @@ import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import AuthManager from '../managers/AuthManager.js';
 import UserService from '../services/UserService.js';
-import DBManager from '../managers/DBManager.js';
 import AdminLogService from '../services/AdminLogService.js';
-import MessageStatsService from '../services/MessageStatsService.js';
-import GroupMembershipService from '../services/GroupMembershipService.js';
 
 class Client {
     #client = null;
     #userService = null;
 
-    constructor() {
+    constructor(dbManager) {
         var apiId = parseInt(process.env.API_ID);
         var apiHash = process.env.API_HASH;
         var sessionString = process.env.CLIENT_SESSION || '';
@@ -24,8 +21,7 @@ class Client {
             { connectionRetries: 5 }
         );
 
-        var dbManager = new DBManager();
-        this.#userService = new UserService(this.#client, dbManager);
+        this.#userService = new UserService(this.#client, dbManager, groupId);
     }
 
     async start() {
@@ -34,13 +30,60 @@ class Client {
         console.log('Client started successfully');
     }
 
-    async getMembers(fromCache = true) {
+    async getRecentParticipants(limit = 200) {
         try {
-            var members = await this.#userService.fetchMembers(process.env.GROUP_ID, fromCache);
-            return members;
+            var participants = await this.#userService.getRecentParticipants(limit);
+            console.log(`Found ${participants.length} recent participants`);
+            return participants;
         } catch (error) {
-            console.error('Error getting members:', error);
+            console.error('Error getting recent participants:', error);
             return [];
+        }
+    }
+
+    async getBannedParticipants(limit = 200) {
+        try {
+            var bannedUsers = await this.#userService.getBannedParticipants(limit);
+            console.log(`Found ${bannedUsers.length} banned participants`);
+            return bannedUsers;
+        } catch (error) {
+            console.error('Error getting banned participants:', error);
+            return [];
+        }
+    }
+
+    async getKickedParticipants(limit = 200) {
+        try {
+            var kickedUsers = await this.#userService.getKickedParticipants(limit);
+            console.log(`Found ${kickedUsers.length} kicked participants`);
+            return kickedUsers;
+        } catch (error) {
+            console.error('Error getting kicked participants:', error);
+            return [];
+        }
+    }
+
+    async getChatAdmins(limit = 100) {
+        try {
+            var admins = await this.#userService.getChatAdmins(limit);
+            console.log(`Found ${admins.length} chat admins`);
+            return admins;
+        } catch (error) {
+            console.error('Error getting chat admins:', error);
+            return [];
+        }
+    }
+
+    async getChatCreator() {
+        try {
+            var creator = await this.#userService.getChatCreator();
+            if (creator) {
+                console.log('Chat creator found:', creator.username || creator.id);
+            }
+            return creator;
+        } catch (error) {
+            console.error('Error getting chat creator:', error);
+            return null;
         }
     }
 
@@ -57,34 +100,22 @@ class Client {
 
     async getUserMessageCount(userId) {
         try {
-            var messageStatsService = new MessageStatsService(this.#client, process.env.GROUP_ID);
-            var count = await messageStatsService.getUserMessageCount(userId);
+            var count = await this.#userService.getUserMessageCount(userId);
+            console.log(`User ${userId} has ${count} messages`);
             return count;
         } catch (error) {
-            console.error('Error getting user message count:', error);
+            console.error('Error in getUserMessageCount:', error);
             return 0;
         }
     }
 
     async isUserMember(userId) {
         try {
-            // Преобразуем ID в число и валидируем
-            var numericUserId = Number(userId);
-            if (isNaN(numericUserId) || numericUserId <= 0) {
-                console.error('Invalid user ID format');
-                return false;
-            }
-
-            var membershipService = new GroupMembershipService(
-                this.#client, 
-                process.env.GROUP_ID
-            );
-            
-            var result = await membershipService.isUserInGroup(numericUserId);
-            console.log(`User ${numericUserId} membership status: ${result}`);
-            return result;
+            var isMember = await this.#userService.isUserInGroup(userId);
+            console.log(isMember ? 'User is member' : 'User not member');
+            return isMember;
         } catch (error) {
-            console.error('Error in isUserMember:', error);
+            console.error('Error checking user membership:', error);
             return false;
         }
     }

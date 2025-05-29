@@ -2,3 +2,6 @@
 node_modules/
 examples/
 data/users.json
+data/users.db
+data/users.db-shm
+data/users.db-wal
