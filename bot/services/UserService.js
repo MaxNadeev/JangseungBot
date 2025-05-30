@@ -11,7 +11,7 @@ class UserService {
         this.#groupId = groupId;
     }
 
-    async getRecentParticipants(limit = 200) {
+    async getRecentParticipants(limit = 300) {
         try {
             var result = await this.#client.invoke(
                 new Api.channels.GetParticipants({
@@ -42,63 +42,100 @@ class UserService {
         }
     }
 
-    async getBannedParticipants(limit = 200) {
+    async getRestrictedParticipants(filterType = 'banned', limit = 300) {
         try {
+            var filter;
+            
+            switch (filterType) {
+                case 'banned':
+                    filter = new Api.ChannelParticipantsBanned({ q: '' });
+                    break;
+                case 'kicked':
+                    filter = new Api.ChannelParticipantsKicked({ q: '' });
+                    break;
+                default:
+                    throw new Error('Invalid filter type. Use "banned" or "kicked"');
+            }
+
             var result = await this.#client.invoke(
                 new Api.channels.GetParticipants({
                     channel: this.#groupId,
-                    filter: new Api.ChannelParticipantsBanned({ q: '' }), // q - фильтр по имени (пустая строка = все)
+                    filter: filter,
                     offset: 0,
                     limit: limit,
                     hash: 0
                 })
             );
 
-            console.log(result); ////////////////////
+            if (!result || !result.users || !result.participants) {
+                console.log(`No ${filterType} participants data found`);
+                return [];
+            }
 
-            return result.users.map(user => ({
-                id: user.id.toString(),
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                isBanned: true // Явно помечаем как забаненных
-            }));
+            // Создаем маппинг userId -> user для быстрого поиска
+            var usersMap = new Map();
+            result.users.forEach(user => {
+                usersMap.set(user.id.toString(), user);
+            });
+
+            return result.participants.map(participant => {
+                var userId = participant.peer.userId?.toString() || 
+                             participant.userId?.toString();
+                if (!userId) return null;
+                
+                var user = usersMap.get(userId) || {};
+                var bannedRights = participant.bannedRights;
+                var isKicked = filterType === 'kicked';
+
+                return {
+                    id: userId,
+                    username: user.username || null,
+                    firstName: user.firstName || null,
+                    lastName: user.lastName || null,
+                    deleted: user.deleted,
+                    isBanned: !isKicked,
+                    isKicked: isKicked,
+                    bannedRights: bannedRights ? this.#formatBannedRights(bannedRights) : null,
+                    restrictionInfo: {
+                        date: participant.date,
+                        restrictedBy: participant.kickedBy?.toString()
+                    }
+                };
+            }).filter(Boolean);
 
         } catch (error) {
-            console.error('Error getting banned participants:', error);
+            console.error(`Error getting ${filterType} participants:`, error);
             return [];
         }
     }
 
-    async getKickedParticipants(limit = 200) {
-        try {
-            var result = await this.#client.invoke(
-                new Api.channels.GetParticipants({
-                    channel: this.#groupId,
-                    filter: new Api.ChannelParticipantsKicked({ q: '' }), // Пустая строка = все кикнутые
-                    offset: 0,
-                    limit: limit,
-                    hash: 0
-                })
-            );
-
-            console.log(result);
-
-            return result.users.map(user => ({
-                id: user.id.toString(),
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                wasKicked: true // Явно помечаем как кикнутых
-            }));
-
-        } catch (error) {
-            console.error('Error getting kicked participants:', error);
-            return [];
-        }
+    #formatBannedRights(bannedRights) {
+        return {
+            viewMessages: bannedRights.viewMessages,
+            sendMessages: bannedRights.sendMessages,
+            sendMedia: bannedRights.sendMedia,
+            sendStickers: bannedRights.sendStickers,
+            sendGifs: bannedRights.sendGifs,
+            sendGames: bannedRights.sendGames,
+            sendInline: bannedRights.sendInline,
+            embedLinks: bannedRights.embedLinks,
+            sendPolls: bannedRights.sendPolls,
+            changeInfo: bannedRights.changeInfo,
+            inviteUsers: bannedRights.inviteUsers,
+            pinMessages: bannedRights.pinMessages,
+            manageTopics: bannedRights.manageTopics,
+            sendPhotos: bannedRights.sendPhotos,
+            sendVideos: bannedRights.sendVideos,
+            sendRoundvideos: bannedRights.sendRoundvideos,
+            sendAudios: bannedRights.sendAudios,
+            sendVoices: bannedRights.sendVoices,
+            sendDocs: bannedRights.sendDocs,
+            sendPlain: bannedRights.sendPlain,
+            untilDate: bannedRights.untilDate
+        };
     }
 
-    async getChatAdmins(limit = 100) {
+    async getChatAdmins(includeCreator = true, limit = 30) {
         try {
             var result = await this.#client.invoke(
                 new Api.channels.GetParticipants({
@@ -110,62 +147,64 @@ class UserService {
                 })
             );
 
-            console.log(result); /////////////////
+            if (!result || !result.users || !result.participants) {
+                console.log('No admin data found');
+                return [];
+            }
 
-            return result.users.map(user => ({
-                id: user.id.toString(),
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                isAdmin: true, // Помечаем как админа
-                isBot: user.bot || false // Добавляем флаг бота
-            }));
+            // Создаем маппинг userId -> participant для быстрого поиска
+            var participantsMap = new Map();
+            result.participants.forEach(participant => {
+                if (participant.userId) {
+                    participantsMap.set(participant.userId.toString(), participant);
+                }
+            });
+
+            var admins = [];
+            
+            result.users.forEach(user => {
+                var participant = participantsMap.get(user.id.toString());
+                if (!participant) return;
+
+                var isCreator = participant.className === 'ChannelParticipantCreator';
+                var adminRights = participant.adminRights;
+                
+                // Если не включаем создателя и это создатель - пропускаем
+                if (!includeCreator && isCreator) return;
+
+                admins.push({
+                    id: user.id.toString(),
+                    username: user.username,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    isAdmin: true,
+                    isCreator: isCreator,
+                    isBot: user.bot || false,
+                    adminRights: adminRights ? {
+                        changeInfo: adminRights.changeInfo,
+                        postMessages: adminRights.postMessages,
+                        editMessages: adminRights.editMessages,
+                        deleteMessages: adminRights.deleteMessages,
+                        banUsers: adminRights.banUsers,
+                        inviteUsers: adminRights.inviteUsers,
+                        pinMessages: adminRights.pinMessages,
+                        addAdmins: adminRights.addAdmins,
+                        anonymous: adminRights.anonymous,
+                        manageCall: adminRights.manageCall,
+                        other: adminRights.other,
+                        manageTopics: adminRights.manageTopics
+                    } : null
+                });
+            });
+
+            // Сортируем: сначала создатель, затем остальные админы
+            admins.sort((a, b) => b.isCreator - a.isCreator);
+
+            return admins;
 
         } catch (error) {
             console.error('Error getting chat admins:', error);
             return [];
-        }
-    }
-
-    async getChatCreator() {
-        try {
-            var result = await this.#client.invoke(
-                new Api.channels.GetParticipants({
-                    channel: this.#groupId,
-                    filter: new Api.ChannelParticipantsAdmins(),
-                    offset: 0,
-                    limit: 100,
-                    hash: 0
-                })
-            );
-
-            // Ищем участника с ролью creator
-            var creator = result.participants.find(p => 
-                p.className === 'ChannelParticipantCreator'
-            );
-
-            if (!creator) {
-                console.log('Chat creator not found');
-                return null;
-            }
-
-            // Находим соответствующий объект пользователя
-            var user = result.users.find(u => 
-                u.id.equals(creator.userId)
-            );
-
-            return {
-                id: user.id.toString(),
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                isCreator: true,
-                adminRights: creator.adminRights // Можно добавить детали прав
-            };
-
-        } catch (error) {
-            console.error('Error getting chat creator:', error);
-            return null;
         }
     }
 

@@ -30,7 +30,7 @@ class Client {
         console.log('Client started successfully');
     }
 
-    async getRecentParticipants(limit = 200) {
+    async getRecentParticipants(limit = 300) {
         try {
             var participants = await this.#userService.getRecentParticipants(limit);
             console.log(`Found ${participants.length} recent participants`);
@@ -41,49 +41,46 @@ class Client {
         }
     }
 
-    async getBannedParticipants(limit = 200) {
+
+    /** 
+    ** ### Получить пользователей с ограничениями (по умолчанию banned и 300 лимит)
+        var bannedUsers = await client.getRestrictedParticipants();
+
+    ** ### Получить выгнанных пользователей (300 лимит)
+        var kickedUsers = await client.getRestrictedParticipants('kicked');
+
+    ** ### Получить с другим лимитом
+        var bannedUsers = await client.getRestrictedParticipants('banned', 200);
+    */
+    async getRestrictedParticipants(filterType = 'banned', limit = 300) {
         try {
-            var bannedUsers = await this.#userService.getBannedParticipants(limit);
-            console.log(`Found ${bannedUsers.length} banned participants`);
-            return bannedUsers;
+            var restrictedUsers = await this.#userService.getRestrictedParticipants(filterType, limit);
+            console.log(`Found ${filterType} participants: `, restrictedUsers.length);
+            return restrictedUsers;
         } catch (error) {
-            console.error('Error getting banned participants:', error);
+            console.error(`Error getting ${filterType} participants:`, error);
             return [];
         }
     }
 
-    async getKickedParticipants(limit = 200) {
-        try {
-            var kickedUsers = await this.#userService.getKickedParticipants(limit);
-            console.log(`Found ${kickedUsers.length} kicked participants`);
-            return kickedUsers;
-        } catch (error) {
-            console.error('Error getting kicked participants:', error);
-            return [];
-        }
-    }
+    /** 
+    ** ### Получить всех админов включая создателя
+        var allAdmins = await client.getChatAdmins();
 
-    async getChatAdmins(limit = 100) {
+    ** ### Получить только обычных админов (без создателя)
+        var regularAdmins = await client.getChatAdmins(false);
+
+    ** ### Получить создателя чата (первый элемент массива)
+        var creator = (await client.getChatAdmins(true, 1))[0];
+    */
+    async getChatAdmins(includeCreator = true, limit = 30) {
         try {
-            var admins = await this.#userService.getChatAdmins(limit);
-            console.log(`Found ${admins.length} chat admins`);
+            var admins = await this.#userService.getChatAdmins(includeCreator = true, limit = 30);
+            console.log('Found admins: ', admins.length);
             return admins;
         } catch (error) {
             console.error('Error getting chat admins:', error);
             return [];
-        }
-    }
-
-    async getChatCreator() {
-        try {
-            var creator = await this.#userService.getChatCreator();
-            if (creator) {
-                console.log('Chat creator found:', creator.username || creator.id);
-            }
-            return creator;
-        } catch (error) {
-            console.error('Error getting chat creator:', error);
-            return null;
         }
     }
 
@@ -118,6 +115,11 @@ class Client {
             console.error('Error checking user membership:', error);
             return false;
         }
+    }
+
+    async stop() {
+        await this.#client.disconnect();
+        console.log('Client stopped');
     }
 }
 
