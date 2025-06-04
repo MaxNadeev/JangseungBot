@@ -26,27 +26,20 @@ var runClient = async () => {
     // Пример отправки эхо-сообщения
     // await client.sendEcho('me', 'Hello from client!');
 
-    // var participants = await client.getRecentParticipants();
-    // // console.log(participants);
-    // console.log('Recent participants:', participants.length);
-    
+    var participants = await client.getRecentParticipants();
+    // console.log(participants);
+    console.log('Recent participants:', participants.length);
+
     var bannedUsers = await client.getRestrictedParticipants();
-    // console.log(bannedUsers[0],bannedUsers[1], bannedUsers[2],bannedUsers[3],bannedUsers[4]);
     console.log('Banned users:', bannedUsers.length);
     
     var kickedUsers = await client.getRestrictedParticipants('kicked');
     // console.log(kickedUsers[0],kickedUsers[1],kickedUsers[2], kickedUsers[3], kickedUsers[4]);
     console.log('Kicked users:', kickedUsers.length);
 
-    // var admins = await client.getChatAdmins();
+    var admins = await client.getChatAdmins();
     // console.log(admins);
-    // console.log('Chat admins:', admins.length);
-    
-    // var creator = await client.getChatCreator();
-    // console.log(creator);
-
-    // var userData = await dbManager.getUsersFromDB();
-    // console.log('Users in DB:', dbUsers.users.length);
+    console.log('Chat admins:', admins.length);
 
     // тест группа ID
     // var testUserIds = {

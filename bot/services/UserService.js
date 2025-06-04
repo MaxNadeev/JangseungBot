@@ -11,6 +11,111 @@ class UserService {
         this.#groupId = groupId;
     }
 
+    async #saveParticipantsToDB(participants, type = 'member') {
+        try {
+            var updatedOn = new Date().toLocaleString('ru-ru');
+            for (var participant of participants) {
+                // для таблицы users
+                var userData = {
+                    id: participant.id,
+                    username: participant.username,
+                    firstName: participant.firstName,
+                    lastName: participant.lastName,
+                    phone: participant.phone,
+                    isBot: participant.isBot,
+                    isPremium: participant.isPremium,
+                    isInGroup: type === 'member' ? 1 : type === 'kicked' ? 0 : type === 'admin' ? 1 : null,
+                    updatedOn: updatedOn,
+                };
+
+                // Сохраняем в users
+                var result = await this.#db.upsertUser(userData);
+                if (!result.success) {
+                    console.error('Failed to save user:', participant.id);
+                    continue;
+                }
+
+                // для таблицы restricted
+                if (type === 'banned' || type === 'kicked') {
+                    var restrictedData = {
+                        userId: participant.id,
+                        isBanned: type === 'banned',
+                        isKicked: type === 'kicked',
+                        restrictedBy: participant.restrictionInfo?.restrictedBy,
+                        restrictionDate: participant.restrictionInfo?.date,
+                        untilDate: participant.bannedRights?.untilDate,
+                        updatedOn: updatedOn
+                    };
+
+                    // Проверяем, существует ли пользователь, который наложил ограничение
+                    if (restrictedData.restrictedBy) {
+                        var restrictorExists = await this.#db.getUser(restrictedData.restrictedBy);
+                        if (!restrictorExists.success || !restrictorExists.user) {
+                            restrictedData.restrictedBy = null; // Убираем ссылку, если пользователь не найден
+                        }
+                    }
+
+                    // Сохраняем в таблицу restricted
+                    var restrictedResult = await this.#db.upsertRestricted(restrictedData);
+                    if (!restrictedResult.success) {
+                        console.error('Failed to save restricted data for:', participant.id);
+                        continue;
+                    }
+
+                    // Сохраняем права в таблицу restricted
+                    if (participant.bannedRights) {
+                        var rightsResult = await this.#db.upsertRestrictedRights({
+                            userId: participant.id,
+                            ...participant.bannedRights
+                        });
+                        if (!rightsResult.success) {
+                            console.error('Failed to save restricted rights for:', participant.id);
+                        }
+                    }
+                }
+
+                // для таблицы admins
+                if (type === 'admin') {
+                    var adminData = {
+                        userId: participant.id,
+                        isCreator: participant.isCreator,
+                        updatedOn: updatedOn
+                    };
+
+                    // Проверяем, существует ли пользователь, который назначил админа
+                    if (adminData.promotedBy) {
+                        var promoterExists = await this.#db.getUser(adminData.promotedBy);
+                        if (!promoterExists.success || !promoterExists.user) {
+                            adminData.promotedBy = null;
+                        }
+                    }
+
+                    // Сохраняем в таблицу admins
+                    var adminResult = await this.#db.upsertAdmin(adminData);
+                    if (!adminResult.success) {
+                        console.error('Failed to save admin data for:', participant.id);
+                        continue;
+                    }
+
+                    // Сохраняем права в таблицу admins
+                    if (participant.adminRights) {
+                        var adminRightsResult = await this.#db.upsertAdminRights({
+                            userId: participant.id,
+                            ...participant.adminRights
+                        });
+                        if (!adminRightsResult.success) {
+                            console.error('Failed to save admin rights for:', participant.id);
+                        }
+                    }
+                }
+            }
+            return { success: true, count: participants.length };
+        } catch (error) {
+            console.error('Error saving participants:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
     async getRecentParticipants(limit = 300) {
         try {
             var result = await this.#client.invoke(
@@ -23,19 +128,21 @@ class UserService {
                 })
             );
 
-            console.log(result); ////////////////////////
-
             var users = result.users || [];
-            return users.map(user => ({
+            var participants = users.map(user => ({
                 id: user.id.toString(),
                 username: user.username,
                 firstName: user.firstName,
                 lastName: user.lastName,
                 phone: user.phone,
                 isBot: user.bot || false,
-                isPremium: user.premium || false
+                isPremium: user.premium || false,
             }));
 
+            // Сохраняем в базу данных
+            await this.#saveParticipantsToDB(participants, 'member');
+            
+            return participants;
         } catch (error) {
             console.error('Error getting recent participants:', error);
             return [];
@@ -78,7 +185,7 @@ class UserService {
                 usersMap.set(user.id.toString(), user);
             });
 
-            return result.participants.map(participant => {
+            var restrictedParticipants = result.participants.map(participant => {
                 var userId = participant.peer.userId?.toString() || 
                              participant.userId?.toString();
                 if (!userId) return null;
@@ -86,53 +193,36 @@ class UserService {
                 var user = usersMap.get(userId) || {};
                 var bannedRights = participant.bannedRights;
                 var isKicked = filterType === 'kicked';
+                var isInGroup = isKicked ? 0 : null;
 
                 return {
                     id: userId,
                     username: user.username || null,
                     firstName: user.firstName || null,
                     lastName: user.lastName || null,
-                    deleted: user.deleted,
+                    phone: user.phone || null,
+                    isBot: user.bot || false,
+                    isPremium: user.premium || false,
                     isBanned: !isKicked,
                     isKicked: isKicked,
+                    isInGroup: isInGroup,
+                    updatedOn: new Date().toLocaleString('ru-ru'),
                     bannedRights: bannedRights ? this.#formatBannedRights(bannedRights) : null,
                     restrictionInfo: {
-                        date: participant.date,
+                        date: new Date(participant.date).toLocaleString('ru-ru'),
                         restrictedBy: participant.kickedBy?.toString()
                     }
                 };
             }).filter(Boolean);
 
+            // Сохраняем в базу данных
+            await this.#saveParticipantsToDB(restrictedParticipants, filterType);
+            
+            return restrictedParticipants;
         } catch (error) {
             console.error(`Error getting ${filterType} participants:`, error);
             return [];
         }
-    }
-
-    #formatBannedRights(bannedRights) {
-        return {
-            viewMessages: bannedRights.viewMessages,
-            sendMessages: bannedRights.sendMessages,
-            sendMedia: bannedRights.sendMedia,
-            sendStickers: bannedRights.sendStickers,
-            sendGifs: bannedRights.sendGifs,
-            sendGames: bannedRights.sendGames,
-            sendInline: bannedRights.sendInline,
-            embedLinks: bannedRights.embedLinks,
-            sendPolls: bannedRights.sendPolls,
-            changeInfo: bannedRights.changeInfo,
-            inviteUsers: bannedRights.inviteUsers,
-            pinMessages: bannedRights.pinMessages,
-            manageTopics: bannedRights.manageTopics,
-            sendPhotos: bannedRights.sendPhotos,
-            sendVideos: bannedRights.sendVideos,
-            sendRoundvideos: bannedRights.sendRoundvideos,
-            sendAudios: bannedRights.sendAudios,
-            sendVoices: bannedRights.sendVoices,
-            sendDocs: bannedRights.sendDocs,
-            sendPlain: bannedRights.sendPlain,
-            untilDate: bannedRights.untilDate
-        };
     }
 
     async getChatAdmins(includeCreator = true, limit = 30) {
@@ -177,9 +267,12 @@ class UserService {
                     username: user.username,
                     firstName: user.firstName,
                     lastName: user.lastName,
+                    phone: user.phone || null,
+                    isBot: user.bot || false,
+                    isPremium: user.premium || false,
                     isAdmin: true,
                     isCreator: isCreator,
-                    isBot: user.bot || false,
+                    updatedOn: new Date().toLocaleString('ru-ru'),
                     adminRights: adminRights ? {
                         changeInfo: adminRights.changeInfo,
                         postMessages: adminRights.postMessages,
@@ -197,15 +290,40 @@ class UserService {
                 });
             });
 
-            // Сортируем: сначала создатель, затем остальные админы
-            admins.sort((a, b) => b.isCreator - a.isCreator);
-
+            // Сохраняем в базу данных
+            await this.#saveParticipantsToDB(admins, 'admin');
+            
             return admins;
-
         } catch (error) {
             console.error('Error getting chat admins:', error);
             return [];
         }
+    }
+
+    #formatBannedRights(bannedRights) {
+        return {
+            viewMessages: bannedRights.viewMessages,
+            sendMessages: bannedRights.sendMessages,
+            sendMedia: bannedRights.sendMedia,
+            sendStickers: bannedRights.sendStickers,
+            sendGifs: bannedRights.sendGifs,
+            sendGames: bannedRights.sendGames,
+            sendInline: bannedRights.sendInline,
+            embedLinks: bannedRights.embedLinks,
+            sendPolls: bannedRights.sendPolls,
+            changeInfo: bannedRights.changeInfo,
+            inviteUsers: bannedRights.inviteUsers,
+            pinMessages: bannedRights.pinMessages,
+            manageTopics: bannedRights.manageTopics,
+            sendPhotos: bannedRights.sendPhotos,
+            sendVideos: bannedRights.sendVideos,
+            sendRoundvideos: bannedRights.sendRoundvideos,
+            sendAudios: bannedRights.sendAudios,
+            sendVoices: bannedRights.sendVoices,
+            sendDocs: bannedRights.sendDocs,
+            sendPlain: bannedRights.sendPlain,
+            untilDate: bannedRights.untilDate
+        };
     }
 
     async isUserInGroup(userId) {
@@ -278,7 +396,7 @@ class UserService {
             return count;
         } catch (error) {
             console.error(`Error getting message count for user ${userId}:`, error);
-            return 0;
+            return -1;
         }
     }
 
