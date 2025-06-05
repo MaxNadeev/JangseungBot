@@ -1,4 +1,3 @@
-// sqlQueries.js
 export var SQL = {
     CREATE_PLACES_TABLE: `
         CREATE TABLE IF NOT EXISTS places (

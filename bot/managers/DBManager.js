@@ -204,7 +204,7 @@ class DBManager {
                 userData.age || null,
                 placeId || null,
                 nationalityId || null,
-                userData.msgCount || null,
+                userData.msgCount === 0 ? 0 : userData.msgCount || null,
                 userData.firstJoin || null,
                 userData.updatedOn,
                 userData.isInGroup

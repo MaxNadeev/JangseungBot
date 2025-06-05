@@ -1,4 +1,5 @@
 import { Api } from 'telegram';
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 class UserService {
     #client = null;
@@ -13,8 +14,12 @@ class UserService {
 
     async #saveParticipantsToDB(participants, type = 'member') {
         try {
+            
             var updatedOn = new Date().toLocaleString('ru-ru');
             for (var participant of participants) {
+                wait(128);
+                var msgCount = await this.getUserMessageCount(participant.id);
+                console.log('#saveParticipantsToDB msgCount: ', msgCount);
                 // для таблицы users
                 var userData = {
                     id: participant.id,
@@ -25,6 +30,7 @@ class UserService {
                     isBot: participant.isBot,
                     isPremium: participant.isPremium,
                     isInGroup: type === 'member' ? 1 : type === 'kicked' ? 0 : type === 'admin' ? 1 : null,
+                    msgCount: msgCount,
                     updatedOn: updatedOn,
                 };
 
