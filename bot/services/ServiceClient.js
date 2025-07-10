@@ -1,7 +1,8 @@
 import { Api } from 'telegram';
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-class UserService {
+
+class ServiceClient {
     #client = null;
     #groupId = null;
     #db = null;
@@ -17,7 +18,7 @@ class UserService {
             
             var updatedOn = new Date().toLocaleString('ru-ru');
             for (var participant of participants) {
-                wait(128);
+                await wait(Math.random() * 333);
                 var msgCount = await this.getUserMessageCount(participant.id);
                 console.log('#saveParticipantsToDB msgCount: ', msgCount);
                 // для таблицы users
@@ -363,6 +364,11 @@ class UserService {
         }
     }
 
+    /**
+     * 
+     * @param {number} userId 
+     * @returns {number}
+     */
     async getUserMessageCount(userId) {
         try {
             var numericUserId = Number(userId);
@@ -416,4 +422,4 @@ class UserService {
     }
 }
 
-export default UserService;
+export default ServiceClient;

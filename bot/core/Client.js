@@ -1,12 +1,12 @@
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import AuthManager from '../managers/AuthManager.js';
-import UserService from '../services/UserService.js';
+import ServiceClient from '../services/ServiceClient.js';
 import AdminLogService from '../services/AdminLogService.js';
 
 class Client {
     #client = null;
-    #userService = null;
+    #ServiceClient = null;
 
     constructor(dbManager) {
         var apiId = parseInt(process.env.API_ID);
@@ -21,7 +21,7 @@ class Client {
             { connectionRetries: 5 }
         );
 
-        this.#userService = new UserService(this.#client, dbManager, groupId);
+        this.#ServiceClient = new ServiceClient(this.#client, dbManager, groupId);
     }
 
     async start() {
@@ -32,7 +32,7 @@ class Client {
 
     async getRecentParticipants(limit = 300) {
         try {
-            var participants = await this.#userService.getRecentParticipants(limit);
+            var participants = await this.#ServiceClient.getRecentParticipants(limit);
             console.log(`Found ${participants.length} recent participants`);
             return participants;
         } catch (error) {
@@ -54,7 +54,7 @@ class Client {
     */
     async getRestrictedParticipants(filterType = 'banned', limit = 300) {
         try {
-            var restrictedUsers = await this.#userService.getRestrictedParticipants(filterType, limit);
+            var restrictedUsers = await this.#ServiceClient.getRestrictedParticipants(filterType, limit);
             console.log(`Found ${filterType} participants: `, restrictedUsers.length);
             return restrictedUsers;
         } catch (error) {
@@ -75,7 +75,7 @@ class Client {
     */
     async getChatAdmins(includeCreator = true, limit = 30) {
         try {
-            var admins = await this.#userService.getChatAdmins(includeCreator = true, limit = 30);
+            var admins = await this.#ServiceClient.getChatAdmins(includeCreator = true, limit = 30);
             console.log('Found admins: ', admins.length);
             return admins;
         } catch (error) {
@@ -97,7 +97,7 @@ class Client {
 
     async getUserMessageCount(userId) {
         try {
-            var count = await this.#userService.getUserMessageCount(userId);
+            var count = await this.#ServiceClient.getUserMessageCount(userId);
             console.log(`User ${userId} has ${count} messages`);
             return count;
         } catch (error) {
@@ -108,7 +108,7 @@ class Client {
 
     async isUserMember(userId) {
         try {
-            var isMember = await this.#userService.isUserInGroup(userId);
+            var isMember = await this.#ServiceClient.isUserInGroup(userId);
             console.log(isMember ? 'User is member' : 'User not member');
             return isMember;
         } catch (error) {

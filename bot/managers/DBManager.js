@@ -25,11 +25,11 @@ class DBManager {
 
     async init() {
         try {
-            var needsInit = !this.#isDatabaseInitialized();
+            var needsInit = !this.isDatabaseInitialized();
             
             if (needsInit) {
                 console.log('Initializing new database...');
-                await this.#createTables();
+                await this.createTables();
                 console.log('Database initialized successfully');
             } else {
                 console.log('Database already exists, skipping initialization');
@@ -42,7 +42,7 @@ class DBManager {
         }
     }
 
-    #isDatabaseInitialized() {
+    isDatabaseInitialized() {
         try {
             var result = this.db.prepare(`
                 SELECT name FROM sqlite_master 
@@ -55,7 +55,7 @@ class DBManager {
         }
     }
 
-    async #createTables() {
+    async createTables() {
         try {
             this.db.exec('BEGIN TRANSACTION');
             
@@ -289,15 +289,21 @@ class DBManager {
         }
     }
 
+    /**
+     * Метод получения пользователя по ID из БД
+     * @param {string | number} userId  
+     * @returns {object} 
+     */
     async getUser(userId) {
         try {
             var stmt = this.db.prepare(SQL.GET_USER_DATA);
-            var result = stmt.get([userId]);
-            return { success: true, user: result };
+            var result = stmt.get([userId.toString()]);
+            return { success: true, data: result };
         } catch (error) {
             return { success: false, error: error.message };
         }
     }
+
 
     async updateUserStats(userId, stats) {
         try {

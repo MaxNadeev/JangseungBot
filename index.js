@@ -2,21 +2,40 @@ import Bot from './bot/core/Bot.js';
 import Client from './bot/core/Client.js';
 import dotenv from 'dotenv';
 import DBManager from './bot/managers/DBManager.js';
-import readline from 'readline/promises';
 
 dotenv.config();
 
 var dbManager = new DBManager('./data/users.db');
 await dbManager.init();
 
-const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
 var runBot = async () => {
-    var bot = new Bot();
+    var bot = new Bot(dbManager);
     await bot.start();
+
+    // var testUserIds = {
+    //     member: 7346100441,
+    //     adminBot: 8103951797,
+    //     creator: 330496561,
+    //     notInGroup: 1234,
+    //     adminHuman: 5323999526,
+    //     thisCodeAdmin: 7073986937,
+    //     restrictedUser: 7778392694,
+    //     excluded: 5603746843,
+    //     banned: 7593290595,
+    //     restricted2: 6606136961
+    // };
+    // try{
+    //     for (var [role, userId] of Object.entries(testUserIds)) {
+    //         var userObj = await bot.getUserFromDB(userId);
+    //         console.log(role, userId, userObj);
+    //     }
+    // } catch (error) {
+    //     console.log('Error of getting user by ID from database', error);
+    // }
+    
+
+    
+     
 };
 
 var runClient = async () => {

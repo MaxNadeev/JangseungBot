@@ -189,6 +189,7 @@
     "vk.cc"
   ],
   "additionalRules": {
-    "minLength": 40
+    "minLength": 40,
+    "minMessages": 100
   }
 }

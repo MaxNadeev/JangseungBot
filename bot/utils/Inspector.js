@@ -1,6 +1,6 @@
 import JsonManager from '../managers/JsonManager.js';
 
-class Store {
+class Inspector {
     constructor() {
         this.triggerWords = new Set();
         this.linkIndicators = new Set();
@@ -25,7 +25,7 @@ class Store {
                     this.symbols.add(symbol));
                 
                 this.minLength = triggers.additionalRules?.minLength || null;
-                console.log('Triggers loaded. Min length:', this.minLength);
+                console.log(`Triggers loaded. Words: ${this.triggerWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);
             }
         } catch (error) {
             console.error('Error loading triggers:', error);
@@ -71,9 +71,10 @@ class Store {
                 return true;
             }
         }
+        
 
         return false;
     }
 }
 
-export default Store;
+export default Inspector;
