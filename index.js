@@ -43,7 +43,7 @@ var runClient = async () => {
     await client.start();
     
     // Пример отправки эхо-сообщения
-    // await client.sendEcho('me', 'Hello from client!');
+    await client.sendEcho('me', 'Hello from client!');
 
     var participants = await client.getRecentParticipants();
     // console.log(participants);
