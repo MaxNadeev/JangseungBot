@@ -11,8 +11,6 @@ class AuthManager {
     async authenticate() {
         if (!await this.#client.checkAuthorization()) {
 
-            console.log('AUTHORISATION...');
-
             await this.#client.start({
                 phoneNumber: async () => await this.#prompt('Please enter your number: '),
                 password: async () => await this.#prompt('Please enter your password: '),
@@ -21,12 +19,9 @@ class AuthManager {
             });
 
             var sessionString = this.#client.session.save();
-            console.log('Save this session string to avoid re-login:');
-            console.log(sessionString);
+            // console.log('Save this session string to avoid re-login:');
+            // console.log(sessionString);
         }
-
-        console.log('Authorised');
-
     }
 
     async #prompt(text) {
