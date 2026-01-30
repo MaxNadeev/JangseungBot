@@ -52,9 +52,9 @@ class EventHandler {
         try {
             var me = await this.botClient.getMe();
             this.botUsername = me.username;
-            console.log(`Bot username loaded: @${this.botUsername}`);
+            console.log(`${new Date().toLocaleString('ru-ru')} Bot username loaded: @${this.botUsername}`);
         } catch (error) {
-            console.error('Error loading bot username:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} Error loading bot username:`, error);
             this.botUsername = 'Jangseungbot'; // fallback
         }
     }
@@ -99,33 +99,33 @@ class EventHandler {
                 var userMsgCount = 0;
                 
                 if (userData.success) {
-                    console.log('user in DB');
+                    console.log(`${new Date().toLocaleString('ru-ru')} user in DB`);
                     userMsgCount = userData.user.msgCount || 0;
                     
                     // Пропускаем проверку для админов
                     if (userData.user.adminRights) {
-                        console.log('Admin message, skipping check');
+                        console.log(`${new Date().toLocaleString('ru-ru')} Admin message, skipping check`);
                         return;
                     }
                     
                     // Пропускаем проверку если у пользователя больше minMessages сообщений
                     // (эта проверка теперь внутри inspector.сheckMessage)
                 } else {
-                    console.log('userData (from DB): NONE');
+                    console.log(`${new Date().toLocaleString('ru-ru')} userData (from DB): NONE`);
                 }
                 
-                console.log('checkMessage...');
+                console.log(`${new Date().toLocaleString('ru-ru')} checkMessage...`);
                 var hasProblem = this.inspector.сheckMessage(message.message, userMsgCount);
-                console.log('hasProblem: ', hasProblem);
+                console.log(`${new Date().toLocaleString('ru-ru')} hasProblem: `, hasProblem);
                 if (!hasProblem) return;
                 
-                console.log('Trigger detected in message:', message.message);
+                console.log(`${new Date().toLocaleString('ru-ru')} Trigger detected in message:`, message.message);
                 await this.handleTriggerMessage(message, userId);
             } else {
-                console.log(`\n className === ${className}\nupdate: ${JSON.stringify(update, null, 2)}\n`);
+                console.log(`\n${new Date().toLocaleString('ru-ru')} className === ${className}\nupdate: ${JSON.stringify(update, null, 2)}\n`);
             }
         } catch (error) {
-            console.error('Error handling message:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} Error handling message:`, error);
         }
     }
 

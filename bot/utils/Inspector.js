@@ -47,6 +47,23 @@ class Inspector {
     }
 
     /**
+     * Проверяет, содержит ли текст корейские символы
+     * @param {string} text - Текст для проверки
+     * @returns {boolean} true если содержит корейские символы
+     */
+    hasKoreanCharacters(text) {
+        if (!text) return false;
+        
+        // Диапазон корейских символов в Unicode:
+        // Хангыль: 0xAC00–0xD7A3 (современные слоги)
+        // Ханча (китайские иероглифы, используемые в корейском): 0x4E00–0x9FFF
+        // Упрощенный диапазон для корейских символов
+        var koreanRegex = /[\uAC00-\uD7A3\u3131-\u318E\u1100-\u11FF\uA960-\uA97F\uD7B0-\uD7FF]/;
+        
+        return koreanRegex.test(text);
+    }
+
+    /**
      * Проверяет, содержит ли текст разрешенные слова
      * @param {string} text - Текст для проверки
      * @returns {boolean} true если содержит разрешенные слова
@@ -74,13 +91,19 @@ class Inspector {
     сheckMessage(text, userMsgCount = 0) {
         if (!text) return false;
         
-        // Проверка минимального количества сообщений пользователя
+        // НОВАЯ ПЕРВАЯ ПРОВЕРКА: корейские символы
+        if (this.hasKoreanCharacters(text)) {
+            console.log(`${new Date().toLocaleString('ru-ru')} Message contains Korean characters, skipping all checks`);
+            return false;
+        }
+        
+        // ВТОРАЯ ПРОВЕРКА: минимальное количество сообщений пользователя
         if (this.minMessages && userMsgCount >= this.minMessages) {
             console.log(`${new Date().toLocaleString('ru-ru')} User has ${userMsgCount} messages, skipping check (min: ${this.minMessages})`);
             return false;
         }
         
-        // Проверка минимальной длины сообщения
+        // ТРЕТЬЯ ПРОВЕРКА: минимальная длина сообщения
         if (this.minLength && text.length < this.minLength) {
             console.log(`${new Date().toLocaleString('ru-ru')} Message too short: ${text.length} chars (min: ${this.minLength})`);
             return false;
@@ -88,21 +111,21 @@ class Inspector {
 
         var normalizedText = text.toLowerCase();
         
-        // ПЕРВАЯ ПРОВЕРКА: разрешенные слова (имеют наивысший приоритет)
+        // ЧЕТВЕРТАЯ ПРОВЕРКА: разрешенные слова (имеют наивысший приоритет после корейских символов)
         if (this.hasAllowedWords(normalizedText)) {
             console.log(`${new Date().toLocaleString('ru-ru')} Message contains allowed words, skipping further checks`);
             return false;
         }
 
-        // ВТОРАЯ ПРОВЕРКА: символы
+        // ПЯТАЯ ПРОВЕРКА: символы
         for (var symbol of this.symbols) {
             if (text.includes(symbol)) {
-                console.log(`${new Date().toLocaleString('ru-ru')}trigger symbol:`, symbol);
+                console.log(`${new Date().toLocaleString('ru-ru')} trigger symbol:`, symbol);
                 return true;
             }
         }
 
-        // ТРЕТЬЯ ПРОВЕРКА: ссылки
+        // ШЕСТАЯ ПРОВЕРКА: ссылки
         for (var link of this.linkIndicators) {
             if (normalizedText.includes(link)) {
                 console.log(`${new Date().toLocaleString('ru-ru')} trigger link:`, link);
@@ -110,7 +133,7 @@ class Inspector {
             }
         }
 
-        // ЧЕТВЕРТАЯ ПРОВЕРКА: запрещенные слова
+        // СЕДЬМАЯ ПРОВЕРКА: запрещенные слова
         var words = new Set(
             normalizedText
                 .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
