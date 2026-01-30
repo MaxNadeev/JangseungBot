@@ -30,7 +30,7 @@ class Client {
         console.log('Client started successfully');
     }
 
-    async getRecentParticipants(limit = 300) {
+    async getRecentParticipants(limit = 500) {
         try {
             var participants = await this.#ServiceClient.getRecentParticipants(limit);
             console.log(`Found ${participants.length} recent participants`);
@@ -43,16 +43,16 @@ class Client {
 
 
     /** 
-    ** ### Получить пользователей с ограничениями (по умолчанию banned и 300 лимит)
+    ** ### Получить пользователей с ограничениями (по умолчанию banned и 500 лимит)
         var bannedUsers = await client.getRestrictedParticipants();
 
-    ** ### Получить выгнанных пользователей (300 лимит)
+    ** ### Получить выгнанных пользователей (500 лимит)
         var kickedUsers = await client.getRestrictedParticipants('kicked');
 
     ** ### Получить с другим лимитом
-        var bannedUsers = await client.getRestrictedParticipants('banned', 200);
+        var bannedUsers = await client.getRestrictedParticipants('banned', 500);
     */
-    async getRestrictedParticipants(filterType = 'banned', limit = 300) {
+    async getRestrictedParticipants(filterType = 'banned', limit = 500) {
         try {
             var restrictedUsers = await this.#ServiceClient.getRestrictedParticipants(filterType, limit);
             console.log(`Found ${filterType} participants: `, restrictedUsers.length);

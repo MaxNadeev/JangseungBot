@@ -18,7 +18,7 @@ class ServiceClient {
             
             var updatedOn = new Date().toLocaleString('ru-ru');
             for (var participant of participants) {
-                await wait(Math.random() * 333);
+                // await wait(Math.random() * 1); /// коэфициент замедления
                 var msgCount = await this.getUserMessageCount(participant.id);
                 console.log('#saveParticipantsToDB msgCount: ', msgCount);
                 // для таблицы users

@@ -20,13 +20,14 @@ class EventHandler {
      * @param {TelegramClient} bot - Экземпляр Telegram клиента
      * @param {DBManager} db - Менеджер базы данных
      */
-    constructor(bot, db) { // удалить db
+    constructor(bot, db) {
         this.botClient = bot;
         this.groupId = process.env.GROUP_ID;
         this.adminId = process.env.ADMIN_ID;
         this.inspector = new Inspector();
-        this.db = db; // удалить db
+        this.db = db;
         this.botService = new ServiceBot(this.botClient, this.db, this.groupId);
+        this.botUsername = null; // Добавим для хранения username бота
     }
 
     /**
@@ -37,6 +38,25 @@ class EventHandler {
      */
     async init() {
         await this.inspector.loadTriggers();
+        // Получаем username бота при инициализации
+        await this.loadBotUsername();
+    }
+
+    /**
+     * Загружает username бота
+     * @async
+     * @method
+     * @returns {Promise<void>}
+     */
+    async loadBotUsername() {
+        try {
+            var me = await this.botClient.getMe();
+            this.botUsername = me.username;
+            console.log(`Bot username loaded: @${this.botUsername}`);
+        } catch (error) {
+            console.error('Error loading bot username:', error);
+            this.botUsername = 'Jangseungbot'; // fallback
+        }
     }
 
     /**
@@ -63,56 +83,39 @@ class EventHandler {
                     return;
                 }
             } else if (className === 'Message') {
-
-                /**
-                 * TEMPORARY TEST
-                 */
-
-                // const buttonRestrict = new Api.KeyboardButtonCallback({
-                //     text: 'Ограничить',
-                //     data: Buffer.from(`ban_${userId}`),
-                // });
-
-                // const buttonAllow = new Api.KeyboardButtonCallback({
-                //     text: 'Выдать 옥새',
-                //     data: Buffer.from(`allow_${userId}`),
-                // });
-                
-                // // Создаем ряд кнопок (правильное использование переменной)
-                // const buttons = [buttonRestrict, buttonAllow]; // Определяем переменную buttons
-                // const row = new Api.KeyboardButtonRow({ buttons });
-                
-                // const replyMarkup = new Api.ReplyInlineMarkup({
-                //     rows: [row],
-                // });
-
-
-                // // Отправляем сообщение с кнопкой
-                // await this.botClient.sendMessage(this.adminId, {
-                //     message: `Сообщение:\n${update.message.message}`,
-                //     buttons: buttons
-                // });
-
-                /** END */
-
                 console.log(`\n${new Date().toLocaleString('ru-ru')} message:`, update.message.message);
                 var userId = message.fromId?.userId?.value?.toString();
                 if (!userId) return;
+                
+                // Проверяем, является ли сообщение командой
+                if (await this.handleCommands(message)) {
+                    return; // Если обработали команду, выходим
+                }
+                
                 if (!message.message || '') return;
                 if (message.replyTo) return;
 
                 var userData = await this.botService.getUserFromDB(userId);
+                var userMsgCount = 0;
                 
                 if (userData.success) {
                     console.log('user in DB');
-                    if (userData.user.adminRights) return;
-                    if (userData.user.isInGroup && userData.user.msgCount > 100) return;
+                    userMsgCount = userData.user.msgCount || 0;
+                    
+                    // Пропускаем проверку для админов
+                    if (userData.user.adminRights) {
+                        console.log('Admin message, skipping check');
+                        return;
+                    }
+                    
+                    // Пропускаем проверку если у пользователя больше minMessages сообщений
+                    // (эта проверка теперь внутри inspector.сheckMessage)
                 } else {
                     console.log('userData (from DB): NONE');
                 }
                 
-                console.log('сheckMessage...')
-                var hasProblem = this.inspector.сheckMessage(message.message);
+                console.log('checkMessage...');
+                var hasProblem = this.inspector.сheckMessage(message.message, userMsgCount);
                 console.log('hasProblem: ', hasProblem);
                 if (!hasProblem) return;
                 
@@ -124,6 +127,118 @@ class EventHandler {
         } catch (error) {
             console.error('Error handling message:', error);
         }
+    }
+
+    /**
+     * Обрабатывает команды
+     * @async
+     * @method
+     * @param {Object} message - Объект сообщения
+     * @returns {Promise<boolean>} True если команда обработана
+     */
+    async handleCommands(message) {
+        try {
+            var text = message.message;
+            if (!text) return false;
+
+            // Убираем лишние пробелы
+            text = text.trim();
+            
+            // Проверяем, начинается ли сообщение с /
+            if (!text.startsWith('/')) return false;
+            
+            // Извлекаем команду (убираем / в начале)
+            var commandText = text.substring(1).trim();
+            
+            // Убираем @username если он есть
+            var command = commandText.split(' ')[0];
+            command = command.split('@')[0].toLowerCase();
+            
+            // Проверяем команду
+            if (command === 'hi') {
+                // Проверяем, адресована ли команда конкретно этому боту
+                if (commandText.includes('@')) {
+                    var mentionedUsername = commandText.split('@')[1].toLowerCase();
+                    if (mentionedUsername !== this.botUsername?.toLowerCase()) {
+                        return false; // Команда адресована другому боту
+                    }
+                }
+                
+                await this.handleHiCommand(message);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error handling command:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Обрабатывает команду /hi
+     * @async
+     * @method
+     * @param {Object} message - Объект сообщения
+     * @returns {Promise<void>}
+     */
+    async handleHiCommand(message) {
+        try {
+            var chatId = message.peerId?.channelId?.value?.toString() || this.groupId;
+            var messageId = message.id;
+            
+            // Получаем информацию о пользователе для персонализированного ответа
+            var userId = message.fromId?.userId?.value?.toString();
+            var userInfo = null;
+            
+            if (userId) {
+                var apiResult = await this.botService.getUserFromAPI(userId);
+                if (apiResult.success) {
+                    userInfo = apiResult.user;
+                }
+            }
+            
+            // Формируем ответ
+            var response = this.formatHiResponse(userInfo);
+            
+            // Отправляем ответ
+            await this.botClient.sendMessage(chatId, {
+                message: response,
+                replyTo: messageId
+            });
+            
+            console.log(`Replied to /hi command from user ${userId}`);
+            
+        } catch (error) {
+            console.error('Error handling /hi command:', error);
+        }
+    }
+
+    /**
+     * Форматирует ответ на команду /hi
+     * @method
+     * @param {Object|null} userInfo - Информация о пользователе
+     * @returns {string} Форматированный ответ
+     */
+    formatHiResponse(userInfo) {
+        var baseResponse = 'Привет!';
+        
+        if (!userInfo) return baseResponse;
+        
+        var username = userInfo.username;
+        var firstName = userInfo.firstName;
+        var lastName = userInfo.lastName;
+        
+        // Формируем обращение
+        var appeal = '';
+        if (firstName) {
+            appeal = ` ${firstName}`;
+        }
+        if (username) {
+            appeal += appeal ? ` (@${username})` : ` @${username}`;
+        }
+        
+        return `${baseResponse}${appeal}!`;
     }
 
     /**
@@ -161,11 +276,23 @@ class EventHandler {
                     rows: [row],
                 });
 
+                // Получаем информацию о пользователе для отправки администратору
+                var userInfo = await this.botService.getUserFromAPI(userId);
+                var username = userInfo.success ? userInfo.user.username : null;
+                var firstName = userInfo.success ? userInfo.user.firstName : null;
+                var lastName = userInfo.success ? userInfo.user.lastName : null;
+                
+                var displayName = [firstName, lastName].filter(Boolean).join(' ');
+                if (username) {
+                    displayName = displayName ? `${displayName} (@${username})` : `@${username}`;
+                } else if (!displayName) {
+                    displayName = `ID: ${userId}`;
+                }
 
                 // Отправляем сообщение с кнопкой
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `Удалил соообщение от ${message.user?.firstName || ''} ${message.user?.lastName || ''} [${userId}]:\n${message.message}`,
-                    buttons: buttons
+                    message: `Удалил сообщение от ${displayName}:\n${message.message}`,
+                    replyMarkup: replyMarkup
                 });
             } else {
                 console.error('Failed to delete message:', deleteResult.error);
@@ -174,8 +301,6 @@ class EventHandler {
             console.error('Error handling trigger message:', error);
         }
     }
-
-  
 
     /**
      * Приветствует нового пользователя
@@ -256,8 +381,10 @@ class EventHandler {
                     message: `Пользователь ${userId} был ограничен`
                 });
             } else if (action === 'allow') {
+                // Логика для кнопки "Доверять"
+                // Можно добавить пользователя в белый список или пометить как доверенного
                 await this.botClient.sendMessage(this.adminId, {
-                    message: 'allowed'
+                    message: `Пользователь ${userId} добавлен в белый список`
                 });
             }
 
