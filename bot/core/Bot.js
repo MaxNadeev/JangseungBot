@@ -40,6 +40,8 @@ class Bot {
         this.botClient.addEventHandler(async (update) => {
             if (update instanceof Api.UpdateNewChannelMessage) {
                 this.eventHandler.handleNewMessage(update);
+            } else if (update instanceof Api.UpdateNewMessage) {
+                this.eventHandler.handlePrivateMessage(update);
             } else if (update instanceof Api.UpdateBotCallbackQuery) {
                 this.eventHandler.handleCallbackQuery(update);
             }

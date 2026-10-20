@@ -130,6 +130,28 @@ class EventHandler {
     }
 
     /**
+     * Обрабатывает личное сообщение (в чате с админом)
+     * @async
+     * @method
+     * @param {Object} update - Объект обновления
+     * @returns {Promise<void>}
+     */
+    async handlePrivateMessage(update) {
+        try {
+            var message = update.message;
+            if (message.className !== 'Message') return;
+            if (message.out) return; // свои сообщения бота
+            
+            var senderId = message.peerId?.userId?.value?.toString();
+            if (senderId !== this.adminId) return; // только админ
+
+            await this.handleCommands(message);
+        } catch (error) {
+            console.error(`${new Date().toLocaleString('ru-ru')} Error handling private message:`, error);
+        }
+    }
+
+    /**
      * Обрабатывает команды
      * @async
      * @method
@@ -184,11 +206,16 @@ class EventHandler {
      */
     async handleHiCommand(message) {
         try {
-            var chatId = message.peerId?.channelId?.value?.toString() || this.groupId;
-            var messageId = message.id;
-            
-            // Получаем информацию о пользователе для персонализированного ответа
             var userId = message.fromId?.userId?.value?.toString();
+            var peer = message.peerId;
+            var chatId;
+            if (peer && peer.className === 'PeerUser') {
+                // личный чат — отвечаем пользователю напрямую
+                chatId = peer.userId?.value?.toString() || userId;
+            } else {
+                chatId = peer?.channelId?.value?.toString() || this.groupId;
+            }
+            var messageId = message.id;
             var userInfo = null;
             
             if (userId) {
