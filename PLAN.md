@@ -2,7 +2,7 @@
 
 > После аппрува: **Этап 0** выполняется сразу — план записывается в корень (`PLAN.md`), создаётся и заполняется `Version history.md`.
 
-> **Статус:** ✅ Этапы 0–2 выполнены · 🔄 Этап 3 — следующий · ⏳ Этапы 4–10 — в очереди.
+> **Статус:** ✅ Этапы 0–5.2 выполнены (включая фикс кнопок и медиа-лимит) · 🔄 Этап 6 — следующий · ⏳ Этапы 7–10 — в очереди.
 
 ## Глоссарий
 
@@ -13,8 +13,8 @@
 ## Процесс работы
 
 1. Работа идёт по этапам; каждый этап заканчивается строкой коммита (в конце этапа).
-2. После выполнения этапа я предлагаю коммит → ты проверяешь, пушишь в git и даёшь команду продолжать.
-3. После пуша я дописываю запись `v.1.0.x` в `Version history.md` и перехожу к следующему этапу.
+2. После выполнения этапа я предлагаю **коммит на английском** (для GitHub) → ты проверяешь, пушишь в git и даёшь команду продолжать.
+3. После пуша я дописываю запись `v.1.0.x` в `Version history.md` (**на русском**) и перехожу к следующему этапу.
 
 ---
 
@@ -118,7 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## 🔄 Этап 3 — Инкрементальный подсчёт сообщений + корректная обработка входов (следующий)
+## ✅ Этап 3 — Инкрементальный подсчёт сообщений + корректная обработка входов (выполнено)
 
 Файлы: `bot/core/EventHandler.js`, `bot/core/Bot.js`, `index.js`.
 
@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## ⏳ Этап 4 — Белый список (доверенные)
+## ✅ Этап 4 — Белый список (доверенные) (выполнено)
 
 Файлы: `bot/core/EventHandler.js`, `bot/services/ServiceBot.js`, `bot/managers/ProfileManager.js`.
 
@@ -155,7 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## ⏳ Этап 5 — Автобан «молчащих» новичков (лишение прав)
+## ✅ Этап 5 — Автобан «молчащих» новичков (лишение прав) (выполнено)
 
 Файлы: `bot/utils/Scheduler.js` (реализовать заглушку), новый `bot/services/SilentJoinerService.js`, `bot/core/Bot.js`.
 
@@ -177,11 +177,33 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 - Запуск задачи в `Bot.start()`.
 - Критерий: молчун через N минут получает ограничение; админ и доверенный — не трогаются; написавший — не трогается.
 
-**Коммит этапа 5:** `feat: автобан молчащих новичков (ограничение прав)`
+**Коммит этапа 5:** `feat: autoban silent joiners`
 
 ---
 
-## ⏳ Этап 6 — `--client`: кик удалённых аккаунтов и заполнение `firstJoin`
+## ✅ Этап 5.1 — Исправление inline-кнопок (выполнено)
+
+> **Первопричина:** GramJS `sendMessage` принимает ключ `buttons`, а не `replyMarkup`. Поэтому `replyMarkup` молча игнорировался и кнопки не прикреплялись.
+
+- `bot/core/EventHandler.js` (`handleTriggerMessage`) и `bot/services/SilentJoinerService.js` (`#notifyAdmin`): `replyMarkup:` → `buttons:`.
+- Критерий: в отчётах админу (триггер и молчун) появляются inline-кнопки.
+
+**Коммит:** `fix: attach inline keyboard via "buttons" in admin reports`
+
+---
+
+## ✅ Этап 5.2 — Запрет фото/видео для первых N сообщений (выполнено)
+
+- Конфиг: `triggers.json → additionalRules.minMessagesForMedia` (по умолчанию `5`); загрузка в `Inspector`.
+- `EventHandler`: `#isPhotoVideo(message)` (фото `MessageMediaPhoto`; видео/GIF — `MessageMediaDocument` с `DocumentAttributeVideo`/`DocumentAttributeAnimated`).
+- В ветке `Message`: если медиа и `msgCount < minMessagesForMedia` и не админ/не доверенный → `handleMediaViolation` (удалить + отчёт админу с кнопками); иначе — считать.
+- Критерий: фото/видео от новичка удаляется; после N сообщений разрешено.
+
+**Коммит:** `feat: block photo/video for first N user messages`
+
+---
+
+## 🔄 Этап 6 — `--client`: кик удалённых аккаунтов и заполнение `firstJoin` (следующий)
 
 Файлы: `bot/services/ServiceClient.js`, `bot/services/ServiceBot.js` (`kickUser`), `index.js`.
 
@@ -191,7 +213,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 - (Опция) `getAllParticipants()` с пагинацией через `ChannelParticipantsSearch({q:''})`, чтобы покрывать всех, а не только 300 «recent».
 - Критерий: `node index.js --client` кикает удалённые аккаунты и заполняет `firstJoin`.
 
-**Коммит этапа 6:** `feat(client): кик удалённых аккаунтов и запись firstJoin`
+**Коммит этапа 6:** `feat(client): kick deleted accounts and store firstJoin`
 
 ---
 
@@ -207,7 +229,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 - `--client` остаётся для первичной заливки на деплое; счёт дальше ведёт бот, пересчёт корректирует (в т.ч. расхождения из-за удалённых сообщений).
 - Критерий: пересчёт по кнопке и по расписанию; не роняет бота; корректирует `msgCount` после удалений.
 
-**Коммит этапа 7:** `feat: пересчёт сообщений по расписанию и по кнопке`
+**Коммит этапа 7:** `feat: recount messages on schedule and via button`
 
 ---
 
@@ -222,7 +244,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 - Кнопки повторно используют callback `ban` → `banUser` (лишение прав).
 - Критерий: за один проход админ получает максимум `inactiveBatchSize` записей одним сообщением; следующие проходы (раз в сутки) выдают следующие батчи, пока не разгребёт; один и тот же пользователь повторно не шлётся. (Опционально: повторное уведомление, если админ не отреагировал за K дней — настраиваемая «протухшая» метка `inactiveReported`.)
 
-**Коммит этапа 8:** `feat: предложение админу ограничивать неактивных "старожилов" (батчами)`
+**Коммит этапа 8:** `feat: notify admin about inactive users (batched)`
 
 ---
 
@@ -235,7 +257,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
   - если в сообщении есть прямой признак «отложенное» (маркер) → тоже удалять. **Нужен пример/маркер от тебя.**
 - Критерий: отложенное сообщение от не-участника удаляется автоматически; обычные сообщения участников не трогаются.
 
-**Коммит этапа 9:** `feat: автоудаление отложенных сообщений`
+**Коммит этапа 9:** `feat: auto-delete scheduled messages`
 
 ---
 
@@ -244,7 +266,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 - **Нужен от тебя** пример сообщения (текст/структура), чтобы вписать точное правило.
 - Ожидаемое поведение: при обнаружении паттерна — `banUser` отправителя и превентивно `banUser` всех ботов, вызванных в сообщении (лишение прав, не кик), + отчёт админу.
 
-**Коммит этапа 10:** `feat: детект спам-атаки через ботов` (уточнится после паттерна)
+**Коммит этапа 10:** `feat: detect bot-spam attack` (уточнится после паттерна)
 
 ---
 

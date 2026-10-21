@@ -107,7 +107,20 @@ class EventHandler {
                     return;
                 }
                 
-                // Пустые/медиа сообщения и ответы на приветствие не проверяем, но считаем
+                // Медиа (фото/видео) — проверяем лимит новичков
+                if (this.#isPhotoVideo(message)) {
+                    var mediaUser = await this.botService.getUserFromDB(userId);
+                    var mediaMsgCount = mediaUser.success ? (mediaUser.user.msgCount || 0) : 0;
+                    var isExempt = mediaUser.success && (mediaUser.user.adminRights || mediaUser.user.trusted);
+                    if (!isExempt && mediaMsgCount < this.inspector.minMessagesForMedia) {
+                        await this.handleMediaViolation(message, userId);
+                        return;
+                    }
+                    await this.db.incrementUserMessage(userId);
+                    return;
+                }
+                
+                // Пустые сообщения и ответы на приветствие не проверяем, но считаем
                 if (!message.message || message.replyTo) {
                     await this.db.incrementUserMessage(userId);
                     return;
@@ -344,13 +357,76 @@ class EventHandler {
                 // Отправляем сообщение с кнопкой
                 await this.botClient.sendMessage(this.adminId, {
                     message: `Удалил сообщение от ${displayName}:\n${message.message}`,
-                    replyMarkup: replyMarkup
+                    buttons: replyMarkup
                 });
             } else {
                 console.error('Failed to delete message:', deleteResult.error);
             }
         } catch (error) {
             console.error('Error handling trigger message:', error);
+        }
+    }
+
+    /**
+     * Определяет, является ли сообщение фото/видео/GIF
+     * @param {Object} message - Объект сообщения
+     * @returns {boolean}
+     */
+    #isPhotoVideo(message) {
+        var media = message.media;
+        if (!media) return false;
+        if (media.className === 'MessageMediaPhoto') return true;
+        if (media.className === 'MessageMediaDocument') {
+            var attrs = media.document?.attributes || [];
+            return attrs.some(a => a.className === 'DocumentAttributeVideo' || a.className === 'DocumentAttributeAnimated');
+        }
+        return false;
+    }
+
+    /**
+     * Удаляет фото/видео от новичка (первые N сообщений без медиа) и уведомляет админа
+     * @async
+     * @method
+     * @param {Object} message - Объект сообщения
+     * @param {string} userId - ID пользователя
+     * @returns {Promise<void>}
+     */
+    async handleMediaViolation(message, userId) {
+        try {
+            var deleteResult = await this.botService.deleteMessage(this.groupId, message.id);
+            if (!deleteResult.success) {
+                console.error('Failed to delete media message:', deleteResult.error);
+                return;
+            }
+
+            const buttonRestrict = new Api.KeyboardButtonCallback({
+                text: 'Ограничить',
+                data: Buffer.from(`ban_${userId}`),
+            });
+            const buttonAllow = new Api.KeyboardButtonCallback({
+                text: 'Доверять',
+                data: Buffer.from(`allow_${userId}`),
+            });
+            const row = new Api.KeyboardButtonRow({ buttons: [buttonRestrict, buttonAllow] });
+            const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
+
+            var userInfo = await this.botService.getUserFromAPI(userId);
+            var username = userInfo.success ? userInfo.user.username : null;
+            var firstName = userInfo.success ? userInfo.user.firstName : null;
+            var lastName = userInfo.success ? userInfo.user.lastName : null;
+            var displayName = [firstName, lastName].filter(Boolean).join(' ');
+            if (username) {
+                displayName = displayName ? `${displayName} (@${username})` : `@${username}`;
+            } else if (!displayName) {
+                displayName = `ID: ${userId}`;
+            }
+
+            await this.botClient.sendMessage(this.adminId, {
+                message: `Удалил фото/видео от ${displayName} — новичок (первые ${this.inspector.minMessagesForMedia} сообщений без медиа)`,
+                buttons: replyMarkup
+            });
+        } catch (error) {
+            console.error('Error handling media violation:', error);
         }
     }
 
@@ -444,7 +520,13 @@ class EventHandler {
             const userId = data.split('_')[1];
             const action = data.split('_')[0];
 
-            if (action === 'ban') {
+            if (action === 'unban') {
+                await this.botService.unbanUser(this.groupId, userId);
+                await this.db.clearRestriction(userId);
+                await this.botClient.sendMessage(this.adminId, {
+                    message: `Пользователь ${userId} разбанен`
+                });
+            } else if (action === 'ban') {
                 await this.botService.banUser(this.groupId, userId);
                 await this.botClient.sendMessage(this.adminId, {
                     message: `Пользователь ${userId} был ограничен`

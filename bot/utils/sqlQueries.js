@@ -242,6 +242,10 @@ export var SQL = {
         INSERT OR REPLACE INTO userFlags (userId, inactiveReported) VALUES (?, ?)
     `,
 
+    CLEAR_RESTRICTION: `
+        UPDATE restricted SET isBanned = 0, isKicked = 0, updatedOn = ? WHERE userId = ?
+    `,
+
     GET_SILENT_JOINERS: `
         SELECT u.userId FROM users u
         LEFT JOIN restricted r ON u.userId = r.userId

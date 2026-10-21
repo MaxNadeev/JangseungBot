@@ -3,6 +3,8 @@ import { StringSession } from 'telegram/sessions/index.js';
 import { Api } from 'telegram/tl/api.js';
 import EventHandler from './EventHandler.js';
 import ServiceBot from '../services/ServiceBot.js';
+import Scheduler from '../utils/Scheduler.js';
+import SilentJoinerService from '../services/SilentJoinerService.js';
 
 class Bot {
     db;
@@ -55,8 +57,17 @@ class Bot {
                 botAuthToken: process.env.BOT_TOKEN
             });
             
-            this.eventHandler.init();
+            await this.eventHandler.init();
             await this.setupEvents();
+
+            // Автобан «молчащих» новичков
+            this.scheduler = new Scheduler();
+            this.silentJoinerService = new SilentJoinerService(this.serviceBot, this.db, process.env.ADMIN_ID, this.eventHandler.inspector);
+            await this.silentJoinerService.runOnce();
+            this.scheduler.addTask('silentJoiner', () => {
+                this.silentJoinerService.runOnce();
+            }, 60 * 1000);
+
             var date = new Date().toLocaleString('ru-ru');
             console.log(`${date} Bot started. Monitoring group: ${process.env.GROUP_ID}`);
         } catch (error) {

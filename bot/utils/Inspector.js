@@ -8,6 +8,9 @@ class Inspector {
         this.symbols = new Set();
         this.minLength = null;
         this.minMessages = null;
+        this.silentJoinThresholdMin = 5; // дефолт значение
+        this.silentJoinBanEnabled = true; // дефолт значение
+        this.minMessagesForMedia = 5; // дефолт значение
     }
 
     async loadTriggers() {
@@ -34,6 +37,9 @@ class Inspector {
                 
                 this.minLength = triggers.additionalRules?.minLength || null;
                 this.minMessages = triggers.additionalRules?.minMessages || null;
+                this.silentJoinThresholdMin = triggers.additionalRules?.silentJoinThresholdMin ?? 5; // страховка с дефолтным значением
+                this.silentJoinBanEnabled = triggers.additionalRules?.silentJoinBanEnabled ?? true; // страховка с дефолтным значением
+                this.minMessagesForMedia = triggers.additionalRules?.minMessagesForMedia ?? 5; // страховка с дефолтным значением
                 
                 console.log(`Triggers loaded. Words: ${this.triggerWords.size}. Allowed: ${this.allowedWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);
             }

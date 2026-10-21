@@ -282,6 +282,28 @@ class ServiceBot {
         }
     }
 
+    async unbanUser(chatId, userId) {
+        try {
+            await this.bot.invoke(
+                new Api.channels.EditBanned({
+                    channel: chatId,
+                    participant: new Api.InputPeerUser({
+                        userId: parseInt(userId),
+                        accessHash: await this.getAccessHash(userId)
+                    }),
+                    bannedRights: new Api.ChatBannedRights({
+                        untilDate: 0,
+                        viewMessages: false,
+                        sendMessages: false
+                    })
+                })
+            );
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
     async getAccessHash(userId) {
         try {
             var entity = await this.bot.getInputEntity(userId);

@@ -358,6 +358,14 @@ class DBManager {
         return { success: true };
     }
 
+    clearRestriction(userId) {
+        var updatedOn = new Date().toLocaleString('ru-ru');
+        this.db.prepare(SQL.CLEAR_RESTRICTION).run([updatedOn, userId]);
+        // сбрасываем firstJoin, чтобы дать новый «тихий» интервал и не ребанить сразу
+        this.setUserJoined(userId, Date.now());
+        return { success: true };
+    }
+
     getSilentJoiners(cutoffMs) {
         var rows = this.db.prepare(SQL.GET_SILENT_JOINERS).all([cutoffMs]);
         return rows.map(row => row.userId);
