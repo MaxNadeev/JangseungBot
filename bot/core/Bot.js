@@ -15,8 +15,9 @@ class Bot {
     eventHandler;
     serviceBot;
 
-    constructor(db) {
+    constructor(db, profileManager) {
         this.db = db;
+        this.profileManager = profileManager;
         this.botToken = process.env.BOT_TOKEN;
         this.sessionString = process.env.BOT_SESSION || '';
         this.apiId = parseInt(process.env.API_ID);
@@ -32,7 +33,7 @@ class Bot {
                 //baseLogger: console
             }
         );
-        this.eventHandler = new EventHandler(this.botClient, this.db);
+        this.eventHandler = new EventHandler(this.botClient, this.db, profileManager);
         this.serviceBot = new ServiceBot(this.botClient, this.db, this.groupId);
     }
 

@@ -2,6 +2,8 @@
 
 > После аппрува: **Этап 0** выполняется сразу — план записывается в корень (`PLAN.md`), создаётся и заполняется `Version history.md`.
 
+> **Статус:** ✅ Этапы 0–2 выполнены · 🔄 Этап 3 — следующий · ⏳ Этапы 4–10 — в очереди.
+
 ## Глоссарий
 
 - **`banUser`** (существующая) — «лишение прав»: `ChatBannedRights({ sendMessages: true, untilDate: 0 })`. Используется для спама, молчунов, неактивных, бот-атаки, флуда. **Не исключает из группы.**
@@ -16,7 +18,7 @@
 
 ---
 
-## Этап 0 — Базовые файлы (сразу после аппрува)
+## ✅ Этап 0 — Базовые файлы (выполнено)
 
 - Создать `PLAN.md` в корне с полным текстом этого плана.
 - Создать `Version history.md` и заполнить ретроспективу `# v.0` + заголовок `# v.1` / `## v.1.0`.
@@ -25,18 +27,23 @@
 
 ---
 
-## Этап 1 — Ping-кнопка в админском чате
+## ✅ Этап 1 — Команда /hi в личном чате админа (выполнено)
 
-- Файл: `bot/core/EventHandler.js`.
-- Команда `/ping` (только `ADMIN_ID`) → inline-кнопка «Ты тут?» (`data: 'ping'`).
-- В `handleCallbackQuery`: `action === 'ping'` → `SetBotCallbackAnswer` + `sendMessage(adminId, 'я тут')`.
-- Критерий: жмёшь кнопку → бот отвечает «я тут».
+> **Итог:** ping-кнопку убрали — оставили только `/hi`. Работает и в супергруппе (для всех), и в личном чате админа (только от `ADMIN_ID`).
 
-**Коммит этапа 1:** `feat: ping-кнопка "ты тут?" в админском чате`
+- `bot/core/Bot.js` — обработка `UpdateNewMessage` → `handlePrivateMessage`.
+- `bot/core/EventHandler.js`:
+  - `handlePrivateMessage` — личные сообщения только от админа; отправитель из `peerId.userId` (в личке `fromId = null`);
+  - `handleHiCommand` — отвечает в личку, если сообщение из личного чата (`PeerUser`).
+- Критерий: `/hi` работает из супергруппы для всех и из лички админа.
+
+**Коммит этапа 1:** `feat: команда /hi в личном чате админа`
 
 ---
 
-## Этап 2 — Схема БД + резервная БД профилей (фундамент)
+## ✅ Этап 2 — Схема БД + резервная profiles.db (выполнено)
+
+> **Итог:** реализовано и проверено. `users` — `firstJoin` INTEGER, `trusted`, таблица `userFlags`. `profiles.db` — `userProfiles` (realName/gender/place/nationality/age/trusted + `firstJoin` TEXT + `birthday` TEXT + `updatedOn` TEXT `toLocaleString('ru-ru')`) и таблицы истории `usernames`/`firstNames`/`lastNames`/`phones`. Backfill из `users.db` выполнен (528/760/244/24). `birthday` — с `setHours(0,0,0,0)`. ⚠️ Перед запуском удалить старую `data/users.db`.
 
 > **Коррекция после уточнения:** часть полей уже есть — `firstJoin` уже в `users` (сейчас TEXT, не заполняется). Новых колонок нужно только две по сути: `trusted` и `inactiveReported`; `lastMessageAt` **не нужен** (правило молчунов считаем через `firstJoin` + `msgCount == 0`). БД ты удалишь и создашь заново, поэтому меняем `CREATE TABLE` напрямую, миграция не нужна; `INSERT OR REPLACE` оставляем.
 
@@ -111,30 +118,31 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 3 — Инкрементальный подсчёт сообщений + корректная обработка входов
+## 🔄 Этап 3 — Инкрементальный подсчёт сообщений + корректная обработка входов (следующий)
 
-Файл: `bot/core/EventHandler.js`.
+Файлы: `bot/core/EventHandler.js`, `bot/core/Bot.js`, `index.js`.
 
-- В ветке `className === 'Message'` после `var userId = ...; if (!userId) return;`:
-  ```js
-  await this.db.incrementUserMessage(userId); // считаем ВСЕ, включая сообщения самого бота
-  if (message.out) return;                     // но свои сообщения не проходят спам-проверку
-  ```
-  (`message.out` — свои сообщения бота; их тоже считаем, т.к. бот — админ и ограничения на него не распространяются.)
-- Переработать входы (сейчас для `MessageActionChatAddUser` берётся `fromId` = админ — баг):
-  - `MessageActionChatJoinedByRequest` / `MessageActionChatJoinedByLink` → `handleUserJoined(message.fromId.userId)`.
-  - `MessageActionChatAddUser` → `handleUserJoined` для каждого `message.action.users`.
-- Новый `handleUserJoined(userId)`: `db.setUserJoined(userId)` (ставит `firstJoin = message.date*1000`, `msgCount`/`isInGroup` по факту) → `sayHello(userId)`.
-- `incrementUserMessage(userId)` — `msgCount + 1` (без `lastMessageAt`).
-- Поправить `sayHello`: в ветке «уже в БД» читать `dbResult.user.username/firstName/lastName` вместо `apiResult.user`.
+- **Инкремент ПОСЛЕ проверки** — считаем только сохранённые (не удалённые) сообщения:
+  - команда (`/hi`) → считаем;
+  - свои сообщения бота (`message.out`) → считаем, но не проверяем на спам;
+  - пустые/медиа и ответы на приветствие (`!message.message` / `message.replyTo`) → считаем, не проверяем;
+  - админ → считаем, пропускаем проверку;
+  - сообщение прошло проверку (`!hasProblem`) → считаем;
+  - триггер (сообщение удаляется) → **не считаем**.
+- Переработать входы:
+  - `MessageActionChatJoinedByRequest` / `MessageActionChatJoinedByLink` → `handleUserJoined(fromId.userId, message.date)`;
+  - `MessageActionChatAddUser` → `handleUserJoined` для каждого `message.action.users` (был баг: брался `fromId` = админ).
+- Новый `handleUserJoined(userId, joinDate)`: `db.setUserJoined(userId, epochMs)` + `profileManager.upsertProfile(userId, { firstJoin: epochMs })` (backup) → `sayHello(userId)`.
+- Пробросить `profileManager` в `Bot`/`EventHandler` (`index.js` → `Bot` → `EventHandler`).
+- Поправить `sayHello`: в ветке «уже в БД» читать `dbResult.user.*` вместо `apiResult.user.*`.
 
-**Критерий:** `msgCount` растёт сразу при каждом сообщении (включая приветствия бота); приветствие адресовано вошедшему.
+**Критерий:** `msgCount` растёт только у сохранённых сообщений (удалённые не засчитываются); приветствие адресовано вошедшему; `firstJoin` пишется в `users` (epoch ms) и в `profiles` (строка).
 
 **Коммит этапа 3:** `feat: инкрементальный подсчёт сообщений и корректная обработка входов`
 
 ---
 
-## Этап 4 — Белый список (доверенные)
+## ⏳ Этап 4 — Белый список (доверенные)
 
 Файлы: `bot/core/EventHandler.js`, `bot/services/ServiceBot.js`, `bot/managers/ProfileManager.js`.
 
@@ -147,7 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 5 — Автобан «молчащих» новичков (лишение прав)
+## ⏳ Этап 5 — Автобан «молчащих» новичков (лишение прав)
 
 Файлы: `bot/utils/Scheduler.js` (реализовать заглушку), новый `bot/services/SilentJoinerService.js`, `bot/core/Bot.js`.
 
@@ -173,7 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 6 — `--client`: кик удалённых аккаунтов и заполнение `firstJoin`
+## ⏳ Этап 6 — `--client`: кик удалённых аккаунтов и заполнение `firstJoin`
 
 Файлы: `bot/services/ServiceClient.js`, `bot/services/ServiceBot.js` (`kickUser`), `index.js`.
 
@@ -187,7 +195,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 7 — Пересчёт по расписанию и по кнопке
+## ⏳ Этап 7 — Пересчёт по расписанию и по кнопке
 
 Файлы: новый `bot/services/ReconcileService.js`, `bot/core/Bot.js`, `bot/core/EventHandler.js`, `.env.example`.
 
@@ -203,7 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 8 — Неактивные «старожилы»: предложение админу (батчами)
+## ⏳ Этап 8 — Неактивные «старожилы»: предложение админу (батчами)
 
 Файлы: `data/triggers.json` (+ `Inspector.loadTriggers`), `bot/utils/Scheduler.js`, `bot/core/Bot.js`.
 
@@ -218,7 +226,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 9 — Отложенные сообщения (автоудаление)
+## ⏳ Этап 9 — Отложенные сообщения (автоудаление)
 
 Файл: `bot/core/EventHandler.js` (+ `ServiceBot.deleteMessage`).
 
@@ -231,7 +239,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## Этап 10 — Спам-атака через ботов (ждёт паттерн)
+## ⏳ Этап 10 — Спам-атака через ботов (ждёт паттерн)
 
 - **Нужен от тебя** пример сообщения (текст/структура), чтобы вписать точное правило.
 - Ожидаемое поведение: при обнаружении паттерна — `banUser` отправителя и превентивно `banUser` всех ботов, вызванных в сообщении (лишение прав, не кик), + отчёт админу.
@@ -244,6 +252,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 - **Борьба с флудом:** N сообщений в секунду (порог в `triggers.json`, напр. 20) → автоматический `banUser` + отчёт админу. (следующая итерация)
 - **Реклама от полезных ботов:** убирать только рекламные сообщения полезных ботов, не трогая самих ботов. (на подумать — возможно, не делать)
+- isInGroup поле базы данных users показывает неверные значения. Это поле должно показывать есть участник в группе, или нет, а там много лишних, это значит, что при апдейте данных не проверяется или некорректно проверяется
 
 ## Краевые случаи и отказы
 

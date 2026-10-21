@@ -27,11 +27,20 @@ export var SQL = {
             place INTEGER,
             nationality INTEGER,
             msgCount INTEGER,
-            firstJoin TEXT,
+            firstJoin INTEGER,
             updatedOn TEXT,
             isInGroup INTEGER,
+            trusted INTEGER DEFAULT 0,
             FOREIGN KEY (place) REFERENCES places(placeId),
             FOREIGN KEY (nationality) REFERENCES nationalities(nationalityId)
+        )
+    `,
+
+    CREATE_USER_FLAGS_TABLE: `
+        CREATE TABLE IF NOT EXISTS userFlags (
+            userId TEXT PRIMARY KEY,
+            inactiveReported INTEGER,
+            FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
         )
     `,
 
@@ -152,8 +161,8 @@ export var SQL = {
         INSERT OR REPLACE INTO users (
             userId, username, firstName, lastName, realName, phone, 
             isBot, isPremium, age, place, nationality,
-            msgCount, firstJoin, updatedOn, isInGroup
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            msgCount, firstJoin, updatedOn, isInGroup, trusted
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     
     INSERT_PLACE: `
@@ -207,6 +216,64 @@ export var SQL = {
             msgCount = ?,
             isInGroup = ?
         WHERE userId = ?
+    `,
+
+    SET_TRUSTED: `
+        UPDATE users SET trusted = ? WHERE userId = ?
+    `,
+
+    SET_USER_JOINED: `
+        UPDATE users SET firstJoin = ?, isInGroup = 1, updatedOn = ? WHERE userId = ?
+    `,
+
+    INSERT_USER_JOINED: `
+        INSERT INTO users (userId, firstJoin, isInGroup, updatedOn) VALUES (?, ?, 1, ?)
+    `,
+
+    INCREMENT_USER_MSG: `
+        UPDATE users SET msgCount = COALESCE(msgCount, 0) + 1, isInGroup = 1, updatedOn = ? WHERE userId = ?
+    `,
+
+    INSERT_USER_MINIMAL: `
+        INSERT INTO users (userId, msgCount, isInGroup, updatedOn) VALUES (?, 1, 1, ?)
+    `,
+
+    SET_INACTIVE_REPORTED: `
+        INSERT OR REPLACE INTO userFlags (userId, inactiveReported) VALUES (?, ?)
+    `,
+
+    GET_SILENT_JOINERS: `
+        SELECT u.userId FROM users u
+        LEFT JOIN restricted r ON u.userId = r.userId
+        LEFT JOIN admins a ON u.userId = a.userId
+        WHERE u.firstJoin IS NOT NULL AND u.firstJoin <= ?
+            AND COALESCE(u.msgCount, 0) = 0
+            AND COALESCE(u.isInGroup, 0) = 1
+            AND COALESCE(u.isBot, 0) = 0
+            AND COALESCE(u.trusted, 0) = 0
+            AND a.userId IS NULL
+            AND (r.userId IS NULL OR COALESCE(r.isBanned, 0) = 0)
+    `,
+
+    GET_DORMANT_USERS: `
+        SELECT u.userId FROM users u
+        LEFT JOIN restricted r ON u.userId = r.userId
+        LEFT JOIN admins a ON u.userId = a.userId
+        LEFT JOIN userFlags f ON u.userId = f.userId
+        WHERE u.firstJoin IS NOT NULL AND u.firstJoin <= ?
+            AND COALESCE(u.msgCount, 0) <= ?
+            AND COALESCE(u.isInGroup, 0) = 1
+            AND COALESCE(u.isBot, 0) = 0
+            AND COALESCE(u.trusted, 0) = 0
+            AND a.userId IS NULL
+            AND (r.userId IS NULL OR COALESCE(r.isBanned, 0) = 0)
+            AND (f.userId IS NULL OR f.inactiveReported IS NULL)
+        ORDER BY u.firstJoin ASC
+        LIMIT ?
+    `,
+
+    UPDATE_USER_MANUAL_DATA: `
+        UPDATE users SET realName = ?, age = ?, place = ?, nationality = ?, trusted = ?, firstJoin = ? WHERE userId = ?
     `,
     
     GET_USER_DATA: `

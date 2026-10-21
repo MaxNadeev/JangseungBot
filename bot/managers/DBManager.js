@@ -21,6 +21,8 @@ class DBManager {
             fileMustExist: false
         });
         this.db.pragma('foreign_keys = ON');
+        this.db.pragma('journal_mode = WAL');
+        this.db.pragma('busy_timeout = 5000');
     }
 
     async init() {
@@ -62,6 +64,7 @@ class DBManager {
             this.db.prepare(SQL.CREATE_PLACES_TABLE).run();
             this.db.prepare(SQL.CREATE_NATIONALITIES_TABLE).run();
             this.db.prepare(SQL.CREATE_USERS_TABLE).run();
+            this.db.prepare(SQL.CREATE_USER_FLAGS_TABLE).run();
             this.db.prepare(SQL.CREATE_RESTRICTED_TABLE).run();
             this.db.prepare(SQL.CREATE_ADMINS_TABLE).run();
             this.db.prepare(SQL.CREATE_ADMIN_RIGHTS_TABLE).run();
@@ -191,6 +194,13 @@ class DBManager {
             }
             
 
+            // Сохраняем trusted и firstJoin, если они не переданы явно (чтобы INSERT OR REPLACE не затирал)
+            var existingUser = this.db.prepare('SELECT trusted, firstJoin FROM users WHERE userId = ?').get([userData.id]);
+            if (userData.trusted === undefined) userData.trusted = existingUser?.trusted ?? 0;
+            if (userData.firstJoin === undefined || userData.firstJoin === null) {
+                userData.firstJoin = existingUser?.firstJoin ?? null;
+            }
+
             var userStmt = this.db.prepare(SQL.INSERT_USER);
             userStmt.run([
                 userData.id,
@@ -205,9 +215,10 @@ class DBManager {
                 placeId || null,
                 nationalityId || null,
                 userData.msgCount === 0 ? 0 : userData.msgCount || null,
-                userData.firstJoin || null,
+                userData.firstJoin ?? null,
                 userData.updatedOn,
-                userData.isInGroup
+                userData.isInGroup,
+                userData.trusted ? 1 : 0
             ]);
 
             
@@ -317,6 +328,67 @@ class DBManager {
         } catch (error) {
             return { success: false, error: error.message };
         }
+    }
+
+    setTrusted(userId, trusted = 1) {
+        this.db.prepare(SQL.SET_TRUSTED).run([trusted ? 1 : 0, userId]);
+        return { success: true };
+    }
+
+    setUserJoined(userId, firstJoin = Date.now()) {
+        var updatedOn = new Date().toLocaleString('ru-ru');
+        var result = this.db.prepare(SQL.SET_USER_JOINED).run([firstJoin, updatedOn, userId]);
+        if (result.changes === 0) {
+            this.db.prepare(SQL.INSERT_USER_JOINED).run([userId, firstJoin, updatedOn]);
+        }
+        return { success: true };
+    }
+
+    incrementUserMessage(userId) {
+        var updatedOn = new Date().toLocaleString('ru-ru');
+        var result = this.db.prepare(SQL.INCREMENT_USER_MSG).run([updatedOn, userId]);
+        if (result.changes === 0) {
+            this.db.prepare(SQL.INSERT_USER_MINIMAL).run([userId, updatedOn]);
+        }
+        return { success: true };
+    }
+
+    setInactiveReported(userId, reportedAt = Date.now()) {
+        this.db.prepare(SQL.SET_INACTIVE_REPORTED).run([userId, reportedAt]);
+        return { success: true };
+    }
+
+    getSilentJoiners(cutoffMs) {
+        var rows = this.db.prepare(SQL.GET_SILENT_JOINERS).all([cutoffMs]);
+        return rows.map(row => row.userId);
+    }
+
+    getDormantUsers(cutoffMs, maxMessages, limit) {
+        var rows = this.db.prepare(SQL.GET_DORMANT_USERS).all([cutoffMs, maxMessages, limit]);
+        return rows.map(row => row.userId);
+    }
+
+    updateUserManualData(userId, data) {
+        var placeId = null;
+        if (data.place) {
+            this.db.prepare(SQL.INSERT_PLACE).run([data.place]);
+            placeId = this.db.prepare(SQL.GET_PLACE_ID).get([data.place]).placeId;
+        }
+        var nationalityId = null;
+        if (data.nationality) {
+            this.db.prepare(SQL.INSERT_NATIONALITY).run([data.nationality]);
+            nationalityId = this.db.prepare(SQL.GET_NATIONALITY_ID).get([data.nationality]).nationalityId;
+        }
+        this.db.prepare(SQL.UPDATE_USER_MANUAL_DATA).run([
+            data.realName ?? null,
+            data.age ?? null,
+            placeId,
+            nationalityId,
+            data.trusted ? 1 : 0,
+            data.firstJoin ?? null,
+            userId
+        ]);
+        return { success: true };
     }
 
     async updateLastUpdated(tableName) {

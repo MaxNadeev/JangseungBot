@@ -25,3 +25,7 @@
 ## v.1.0
 
 - **v.1.0.0** — Добавил обработку личных сообщений (`UpdateNewMessage`, только для `ADMIN_ID`), чтобы команда `/hi` работала и в чате с админом, а не только в супергруппе (в группе `/hi` как и раньше доступна всем).
+
+- **v.1.0.1** — Обновил схему БД (`firstJoin` INTEGER, поле `trusted`, таблица `userFlags`) и добавил резервную БД `profiles.db`: снимок `userProfiles` (realName/gender/place/nationality/age/trusted + `firstJoin`/`birthday` TEXT) + таблицы истории `usernames`/`firstNames`/`lastNames`/`phones` (`updatedOn` TEXT `toLocaleString('ru-ru')`) — чтобы хранить ручные данные независимо от автособираемой `users.db` и видеть смену ника/имени/телефона по одному telegram ID.
+
+- **v.1.0.2** — Инкрементальный подсчёт сообщений (считаются только прошедшие проверку, не удалённые) + корректная обработка входов (`firstJoin` пишется в `users` и в `profiles`, фикс приветствия) — чтобы `msgCount` был актуальным и не учитывал удалённый спам.

@@ -6,4 +6,7 @@ data/users.json
 data/users.db
 data/users.db-shm
 data/users.db-wal
+data/profiles.db
+data/profiles.db-shm
+data/profiles.db-wal
 aiQuery.txt

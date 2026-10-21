@@ -12,6 +12,7 @@ class EventHandler {
     inspector;
     botService;
     db;
+    profileManager;
     adminId;
 
     /**
@@ -20,12 +21,13 @@ class EventHandler {
      * @param {TelegramClient} bot - Экземпляр Telegram клиента
      * @param {DBManager} db - Менеджер базы данных
      */
-    constructor(bot, db) {
+    constructor(bot, db, profileManager) {
         this.botClient = bot;
         this.groupId = process.env.GROUP_ID;
         this.adminId = process.env.ADMIN_ID;
         this.inspector = new Inspector();
         this.db = db;
+        this.profileManager = profileManager;
         this.botService = new ServiceBot(this.botClient, this.db, this.groupId);
         this.botUsername = null; // Добавим для хранения username бота
     }
@@ -73,13 +75,19 @@ class EventHandler {
 
             if (className === 'MessageService') {
                 console.log(`\n className === ${className}\nupdate: ${JSON.stringify(update, null, 2)}\n`);
-                var actionClass = message.action.className;
-                
+                var actionClass = message.action?.className;
+
                 if (actionClass === 'MessageActionChatJoinedByRequest' || 
-                    actionClass === 'MessageActionChatAddUser') {
+                    actionClass === 'MessageActionChatJoinedByLink') {
                     var userId = message.fromId?.userId?.value?.toString();
                     if (!userId) return;
-                    await this.sayHello(userId);
+                    await this.handleUserJoined(userId, message.date);
+                    return;
+                } else if (actionClass === 'MessageActionChatAddUser') {
+                    var addedUsers = message.action?.users || [];
+                    for (var u of addedUsers) {
+                        await this.handleUserJoined(u.toString(), message.date);
+                    }
                     return;
                 }
             } else if (className === 'Message') {
@@ -87,13 +95,23 @@ class EventHandler {
                 var userId = message.fromId?.userId?.value?.toString();
                 if (!userId) return;
                 
-                // Проверяем, является ли сообщение командой
+                // Команда (/hi): сообщение сохраняется — считаем
                 if (await this.handleCommands(message)) {
-                    return; // Если обработали команду, выходим
+                    await this.db.incrementUserMessage(userId);
+                    return;
                 }
                 
-                if (!message.message || '') return;
-                if (message.replyTo) return;
+                // Свои сообщения бота: не проверяем на спам, но считаем
+                if (message.out) {
+                    await this.db.incrementUserMessage(userId);
+                    return;
+                }
+                
+                // Пустые/медиа сообщения и ответы на приветствие не проверяем, но считаем
+                if (!message.message || message.replyTo) {
+                    await this.db.incrementUserMessage(userId);
+                    return;
+                }
 
                 var userData = await this.botService.getUserFromDB(userId);
                 var userMsgCount = 0;
@@ -102,9 +120,10 @@ class EventHandler {
                     console.log(`${new Date().toLocaleString('ru-ru')} user in DB`);
                     userMsgCount = userData.user.msgCount || 0;
                     
-                    // Пропускаем проверку для админов
+                    // Админы: пропускаем проверку, но считаем
                     if (userData.user.adminRights) {
                         console.log(`${new Date().toLocaleString('ru-ru')} Admin message, skipping check`);
+                        await this.db.incrementUserMessage(userId);
                         return;
                     }
                     
@@ -117,8 +136,14 @@ class EventHandler {
                 console.log(`${new Date().toLocaleString('ru-ru')} checkMessage...`);
                 var hasProblem = this.inspector.сheckMessage(message.message, userMsgCount);
                 console.log(`${new Date().toLocaleString('ru-ru')} hasProblem: `, hasProblem);
-                if (!hasProblem) return;
                 
+                if (!hasProblem) {
+                    // прошло проверку — сообщение сохраняется, считаем
+                    await this.db.incrementUserMessage(userId);
+                    return;
+                }
+                
+                // Триггер: сообщение удаляется — НЕ считаем
                 console.log(`${new Date().toLocaleString('ru-ru')} Trigger detected in message:`, message.message);
                 await this.handleTriggerMessage(message, userId);
             } else {
@@ -206,8 +231,8 @@ class EventHandler {
      */
     async handleHiCommand(message) {
         try {
-            var userId = message.fromId?.userId?.value?.toString();
             var peer = message.peerId;
+            var userId = message.fromId?.userId?.value?.toString() || peer?.userId?.value?.toString();
             var chatId;
             if (peer && peer.className === 'PeerUser') {
                 // личный чат — отвечаем пользователю напрямую
@@ -330,6 +355,23 @@ class EventHandler {
     }
 
     /**
+     * Обрабатывает вход нового пользователя: фиксирует firstJoin и приветствует
+     * @async
+     * @method
+     * @param {string} userId - ID пользователя
+     * @param {number} joinDate - unix-время входа в секундах (message.date)
+     * @returns {Promise<void>}
+     */
+    async handleUserJoined(userId, joinDate) {
+        var epochMs = joinDate ? joinDate * 1000 : Date.now();
+        await this.db.setUserJoined(userId, epochMs);
+        if (this.profileManager) {
+            this.profileManager.upsertProfile(userId, { firstJoin: epochMs });
+        }
+        await this.sayHello(userId);
+    }
+
+    /**
      * Приветствует нового пользователя
      * @async
      * @method
@@ -346,9 +388,9 @@ class EventHandler {
         var apiResult = await this.botService.getUserFromAPI(userId);
 
         if (dbResult.success) {
-            username = apiResult.user.username || null;
-            firstName = apiResult.user.firstName || null;
-            lastName = apiResult.user.lastName || null;
+            username = dbResult.user.username || null;
+            firstName = dbResult.user.firstName || null;
+            lastName = dbResult.user.lastName || null;
             appeal = this.formatAppeal(username, firstName, lastName);
             greeting = `Привет! С возвращением${appeal}`;
         } else {

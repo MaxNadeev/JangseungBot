@@ -2,14 +2,18 @@ import Bot from './bot/core/Bot.js';
 import Client from './bot/core/Client.js';
 import dotenv from 'dotenv';
 import DBManager from './bot/managers/DBManager.js';
+import ProfileManager from './bot/managers/ProfileManager.js';
 
 dotenv.config();
 
 var dbManager = new DBManager('./data/users.db');
 await dbManager.init();
 
+var profileManager = new ProfileManager('./data/profiles.db');
+// init не нужен, таблицы с ручными данными
+
 var runBot = async () => {
-    var bot = new Bot(dbManager);
+    var bot = new Bot(dbManager, profileManager);
     await bot.start();
 
     // var testUserIds = {
