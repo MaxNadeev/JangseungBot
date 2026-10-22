@@ -8,23 +8,29 @@ import ServiceClient from './ServiceClient.js';
  * Использует существующий ServiceClient (кик удалённых, firstJoin, restricted).
  */
 class ReconcileService {
-    constructor() {
+    constructor(botClient = null) {
         this.isRunning = false;
+        this.botClient = botClient;
     }
 
     async recountWithUserSession(db, groupId, profileManager) {
         if (this.isRunning) {
-            return { success: false, error: 'Пересчёт уже выполняется' };
+            return { success: false, error: 'Апдейт уже выполняется' };
         }
         this.isRunning = true;
         var started = Date.now();
 
         try {
             var session = process.env.CLIENT_SESSION || '';
+            console.log('[ReconcileService] process.env.CLIENT_SESSION длина:', session.length);
+            console.log('[ReconcileService] process.env.CLIENT_SESSION первые 50 символов:', session.substring(0, 50));
+            
             if (!session) {
+                console.error('[ReconcileService] CLIENT_SESSION пуста в process.env');
                 return { success: false, error: 'нет сессии клиента' };
             }
 
+            console.log('[ReconcileService] Создаю TelegramClient с сессией...');
             var client = new TelegramClient(
                 new StringSession(session),
                 parseInt(process.env.API_ID),
@@ -32,18 +38,27 @@ class ReconcileService {
                 { connectionRetries: 5 }
             );
 
+            // checkAuthorization() сам НЕ подключается (invoke требует уже установленный connect),
+            // поэтому подключаемся явно, как это делает client.start() в --client режиме.
+            var connected = await client.connect();
+            console.log('[ReconcileService] connect результат:', connected);
+
             var authorized = false;
             try {
+                console.log('[ReconcileService] Проверяю авторизацию...');
                 authorized = await client.checkAuthorization();
+                console.log('[ReconcileService] checkAuthorization результат:', authorized);
             } catch (e) {
+                console.error('[ReconcileService] checkAuthorization ошибка:', e.message);
                 authorized = false;
             }
             if (!authorized) {
-                await client.disconnect().catch(() => {});
-                return { success: false, error: 'нет сессии клиента' };
+                console.error('[ReconcileService] Клиент не авторизован. Сессия устарела или невалидна.');
+                await client.destroy().catch(() => {});
+                return { success: false, error: 'сессия клиента устарела или невалидна' };
             }
 
-            var serviceClient = new ServiceClient(client, db, groupId);
+            var serviceClient = new ServiceClient(client, db, groupId, this.botClient);
             var members = await serviceClient.getRecentParticipants();
             var banned = await serviceClient.getRestrictedParticipants('banned');
             var kicked = await serviceClient.getRestrictedParticipants('kicked');
@@ -53,7 +68,9 @@ class ReconcileService {
                 profileManager.syncProfilesToUsers(db);
             }
 
-            await client.disconnect().catch(() => {});
+            // destroy() (а не disconnect()) — ставит _destroyed=true, чтобы фоновый
+            // _updateLoop клиента пересчёта остановился и не слал TIMEOUT-пинги.
+            await client.destroy().catch(() => {});
 
             return {
                 success: true,
@@ -61,6 +78,7 @@ class ReconcileService {
                 banned: banned.length,
                 kicked: kicked.length,
                 admins: admins.length,
+                deleted: serviceClient.deletedKicked,
                 seconds: Math.round((Date.now() - started) / 1000)
             };
         } catch (error) {

@@ -185,6 +185,7 @@
     "minMessagesForMedia": 5,
     "inactiveDays": 365,
     "inactiveMaxMessages": 1,
-    "inactiveBatchSize": 10
+    "inactiveBatchSize": 10,
+    "recountIntervalHours": 24
   }
 }

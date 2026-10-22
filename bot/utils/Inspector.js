@@ -15,6 +15,7 @@ class Inspector {
         this.inactiveDays = 365;
         this.inactiveMaxMessages = 1;
         this.inactiveBatchSize = 10;
+        this.recountIntervalHours = 24; // дефолт значение
     }
 
     async loadTriggers() {
@@ -48,6 +49,7 @@ class Inspector {
                 this.inactiveDays = triggers.additionalRules?.inactiveDays ?? 365;
                 this.inactiveMaxMessages = triggers.additionalRules?.inactiveMaxMessages ?? 1;
                 this.inactiveBatchSize = triggers.additionalRules?.inactiveBatchSize ?? 10;
+                this.recountIntervalHours = triggers.additionalRules?.recountIntervalHours ?? 24;
                 
                 console.log(`Triggers loaded. Words: ${this.triggerWords.size}. Allowed: ${this.allowedWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);
             }

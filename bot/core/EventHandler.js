@@ -73,6 +73,8 @@ class EventHandler {
     async handleNewMessage(update) {
         try {
             var message = update.message;
+            console.log(`\n${new Date().toLocaleString('ru-ru')} `, message);
+            
             var className = message.className;
 
             if (className === 'MessageService') {
@@ -190,9 +192,59 @@ class EventHandler {
             var senderId = message.peerId?.userId?.value?.toString();
             if (senderId !== this.adminId) return; // только админ
 
+            // Кнопки ответа (reply keyboard) шлют текст без слэша
+            var text = (message.message || '').trim();
+            var lower = text.toLowerCase();
+            if (lower === 'привет') {
+                await this.handleHiCommand(message);
+                return;
+            }
+            if (lower === 'обновить данные') {
+                await this.runUpdate();
+                return;
+            }
+
             await this.handleCommands(message);
         } catch (error) {
             console.error(`${new Date().toLocaleString('ru-ru')} Error handling private message:`, error);
+        }
+    }
+
+    /**
+     * Отправляет админу панель управления с кнопками «Привет» и «Обновить данные»
+     * @async
+     * @method
+     * @returns {Promise<void>}
+     */
+    async sendAdminPanel() {
+        const buttonHi = new Api.KeyboardButton({ text: 'Привет' });
+        const buttonUpdate = new Api.KeyboardButton({ text: 'Обновить данные' });
+        const row = new Api.KeyboardButtonRow({ buttons: [buttonHi, buttonUpdate] });
+        const replyMarkup = new Api.ReplyKeyboardMarkup({ rows: [row], resize: true });
+
+        await this.botClient.sendMessage(this.adminId, {
+            message: 'Действия',
+            buttons: replyMarkup
+        });
+    }
+
+    /**
+     * Запускает апдейт (пересчёт) со статусом и финальным отчётом
+     * @async
+     * @method
+     * @returns {Promise<void>}
+     */
+    async runUpdate() {
+        await this.botClient.sendMessage(this.adminId, { message: 'Апдейт запущен…' });
+        var result = await this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
+        if (result.success) {
+            await this.botClient.sendMessage(this.adminId, {
+                message: `Апдейт выполнен: участников ${result.members}, банов ${result.banned}, киков ${result.kicked}, админов ${result.admins}, удалено удалённых аккаунтов ${result.deleted}, ${result.seconds} сек.`
+            });
+        } else {
+            await this.botClient.sendMessage(this.adminId, {
+                message: `Ошибка апдейта: ${result.error}`
+            });
         }
     }
 
@@ -235,21 +287,11 @@ class EventHandler {
                 return true;
             }
 
-            if (command === 'recount') {
+            if (command === 'update') {
                 var senderId = message.fromId?.userId?.value?.toString() || message.peerId?.userId?.value?.toString();
                 if (senderId !== this.adminId) return false;
 
-                const buttonRecount = new Api.KeyboardButtonCallback({
-                    text: '▶️ Запустить пересчёт',
-                    data: Buffer.from('recount_start'),
-                });
-                const row = new Api.KeyboardButtonRow({ buttons: [buttonRecount] });
-                const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
-
-                await this.botClient.sendMessage(this.adminId, {
-                    message: 'Пересчёт сообщений участников:',
-                    buttons: replyMarkup
-                });
+                await this.runUpdate();
                 return true;
             }
             
@@ -366,8 +408,9 @@ class EventHandler {
                     rows: [row],
                 });
 
-                // Имя/ник отправителя берём прямо из апдейта (message.sender)
-                var displayName = buildDisplayName(userId, message.sender);
+                // Получаем полную информацию о пользователе из API
+                var userInfo = await this.botService.getUserFromAPI(userId);
+                var displayName = buildDisplayName(userId, userInfo);
 
                 // Отправляем сообщение с кнопкой
                 await this.botClient.sendMessage(this.adminId, {
@@ -402,6 +445,13 @@ class EventHandler {
             }
 
             if (dbUser.data.isInGroup === 0) {
+                // DB могла устареть — подтверждаем по Telegram, что пользователя нет в группе
+                var inGroup = await this.botService.isMemberOfGroup(userId);
+                if (inGroup) {
+                    await this.db.setUserJoined(userId, Date.now()); // актуализируем isInGroup
+                    return false;
+                }
+
                 await this.botService.deleteMessage(this.groupId, message.id);
                 var displayName = buildDisplayName(userId, dbUser.data);
                 await this.botClient.sendMessage(this.adminId, {
@@ -459,7 +509,9 @@ class EventHandler {
             const row = new Api.KeyboardButtonRow({ buttons: [buttonRestrict, buttonAllow] });
             const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
 
-            var displayName = buildDisplayName(userId, message.sender);
+            // Получаем полную информацию о пользователе из API
+            var userInfo = await this.botService.getUserFromAPI(userId);
+            var displayName = buildDisplayName(userId, userInfo);
 
             await this.botClient.sendMessage(this.adminId, {
                 message: `Удалил фото/видео от ${displayName} — новичок начинает сразу с медиа. Похоже на спам.`,
@@ -553,19 +605,7 @@ class EventHandler {
             const userId = data.split('_')[1];
             const action = data.split('_')[0];
 
-            if (action === 'recount_start') {
-                await this.botClient.sendMessage(this.adminId, { message: 'Пересчёт запущен…' });
-                var result = await this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
-                if (result.success) {
-                    await this.botClient.sendMessage(this.adminId, {
-                        message: `Пересчёт завершён: участников ${result.members}, банов ${result.banned}, киков ${result.kicked}, админов ${result.admins}, ${result.seconds} сек.`
-                    });
-                } else {
-                    await this.botClient.sendMessage(this.adminId, {
-                        message: `Ошибка пересчёта: ${result.error}`
-                    });
-                }
-            } else if (action === 'unban') {
+            if (action === 'unban') {
                 await this.botService.unbanUser(this.groupId, userId);
                 await this.db.clearRestriction(userId);
                 await this.botClient.sendMessage(this.adminId, {

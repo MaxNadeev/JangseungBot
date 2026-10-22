@@ -1,5 +1,10 @@
 import { StringSession } from 'telegram/sessions/index.js';
 import readline from 'readline/promises';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 class AuthManager {
     #client = null;
@@ -19,8 +24,35 @@ class AuthManager {
             });
 
             var sessionString = this.#client.session.save();
-            // console.log('Save this session string to avoid re-login:');
-            // console.log(sessionString);
+            
+            // Сохраняем новую сессию в .env
+            await this.#updateEnvSession(sessionString);
+            console.log('[AuthManager] Сессия обновлена в .env и загружена в process.env');
+        }
+    }
+
+    async #updateEnvSession(sessionString) {
+        var envPath = path.join(__dirname, '..', '..', '.env');
+        
+        try {
+            var envContent = fs.readFileSync(envPath, 'utf-8');
+            
+            // Заменяем строку CLIENT_SESSION или добавляем её
+            if (envContent.includes('CLIENT_SESSION=')) {
+                envContent = envContent.replace(
+                    /CLIENT_SESSION=.*/,
+                    `CLIENT_SESSION=${sessionString}`
+                );
+            } else {
+                envContent += `\nCLIENT_SESSION=${sessionString}`;
+            }
+            
+            fs.writeFileSync(envPath, envContent, 'utf-8');
+            
+            // Обновляем process.env чтобы не перезапускать
+            process.env.CLIENT_SESSION = sessionString;
+        } catch (error) {
+            console.error('[AuthManager] Ошибка при сохранении сессии в .env:', error.message);
         }
     }
 

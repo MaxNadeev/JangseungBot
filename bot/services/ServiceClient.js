@@ -9,11 +9,18 @@ class ServiceClient {
     #groupId = null;
     #db = null;
     #meId = null;
+    #deletedKicked = 0;
+    #notifyClient = null;
 
-    constructor(client, db, groupId) {
+    constructor(client, db, groupId, notifyClient = null) {
         this.#client = client;
         this.#db = db;
         this.#groupId = groupId;
+        this.#notifyClient = notifyClient;
+    }
+
+    get deletedKicked() {
+        return this.#deletedKicked;
     }
 
     async #saveParticipantsToDB(participants, type = 'member') {
@@ -128,20 +135,50 @@ class ServiceClient {
         }
     }
 
-    async getRecentParticipants(limit = 300) {
-        try {
+    /**
+     * Выкачивает ВСЕ страницы участников.
+     * Telegram отдаёт максимум 200 записей за один channels.GetParticipants,
+     * поэтому идём по страницам через offset, пока страница не станет неполной.
+     * @param {Api.ChannelParticipantsFilter} filter - уже созданный фильтр (Search/Banned/Kicked/...)
+     * @returns {Promise<{users: Array, participants: Array}>}
+     */
+    async #fetchParticipantsPages(filter) {
+        var allUsers = [];
+        var allParticipants = [];
+        var offset = 0;
+        var pageLimit = 200;
+        while (true) {
             var result = await this.#client.invoke(
                 new Api.channels.GetParticipants({
                     channel: this.#groupId,
-                    filter: new Api.ChannelParticipantsRecent(),
-                    offset: 0,
-                    limit: limit,
+                    filter: filter,
+                    offset: offset,
+                    limit: pageLimit,
                     hash: 0
                 })
             );
-
+            if (result instanceof Api.channels.ChannelParticipantsNotModified) {
+                break;
+            }
             var users = result.users || [];
-            var participantsRaw = result.participants || [];
+            var participants = result.participants || [];
+            allUsers.push(...users);
+            allParticipants.push(...participants);
+            if (participants.length < pageLimit) {
+                break;
+            }
+            offset += pageLimit;
+        }
+        return { users: allUsers, participants: allParticipants };
+    }
+
+    async getRecentParticipants() {
+        try {
+            // ChannelParticipantsSearch с пустым q отдаёт ВСЕХ участников (с пагинацией),
+            // тогда как ChannelParticipantsRecent ограничен последними ~200 вступившими.
+            var { users, participants: participantsRaw } = await this.#fetchParticipantsPages(
+                new Api.ChannelParticipantsSearch({ q: '' })
+            );
 
             // userId -> unix-время входа (секунды)
             var joinDateMap = new Map();
@@ -165,9 +202,15 @@ class ServiceClient {
                 }
             }
 
+            this.#deletedKicked = kickedNames.length;
+
+            // Уведомление админу шлём через бот-клиент (--bot), а не через юзер-сессию,
+            // чтобы отчёт приходил из диалога бота, а не от аккаунта автоматизации.
+            var notifyClient = this.#notifyClient || this.#client;
+
             if (kickedNames.length > 0 && adminId) {
                 try {
-                    await this.#client.sendMessage(adminId, {
+                    await notifyClient.sendMessage(adminId, {
                         message: `Удалил удалённые аккаунты (${kickedNames.length}):\n${kickedNames.join('\n')}`
                     });
                 } catch (e) {
@@ -201,7 +244,7 @@ class ServiceClient {
         }
     }
 
-    async getRestrictedParticipants(filterType = 'banned', limit = 300) {
+    async getRestrictedParticipants(filterType = 'banned') {
         try {
             var filter;
             
@@ -216,28 +259,20 @@ class ServiceClient {
                     throw new Error('Invalid filter type. Use "banned" or "kicked"');
             }
 
-            var result = await this.#client.invoke(
-                new Api.channels.GetParticipants({
-                    channel: this.#groupId,
-                    filter: filter,
-                    offset: 0,
-                    limit: limit,
-                    hash: 0
-                })
-            );
+            var { users, participants } = await this.#fetchParticipantsPages(filter);
 
-            if (!result || !result.users || !result.participants) {
+            if (!participants.length) {
                 console.log(`No ${filterType} participants data found`);
                 return [];
             }
 
             // Создаем маппинг userId -> user для быстрого поиска
             var usersMap = new Map();
-            result.users.forEach(user => {
+            users.forEach(user => {
                 usersMap.set(user.id.toString(), user);
             });
 
-            var restrictedParticipants = result.participants.map(participant => {
+            var restrictedParticipants = participants.map(participant => {
                 var userId = participant.peer.userId?.toString() || 
                              participant.userId?.toString();
                 if (!userId) return null;

@@ -335,6 +335,19 @@ class ServiceBot {
             return 0;
         }
     }
+
+    async isMemberOfGroup(userId) {
+        try {
+            var inputUser = await this.bot.getInputEntity(userId);
+            await this.bot.invoke(new Api.channels.GetParticipant({
+                channel: this.groupId,
+                participant: inputUser
+            }));
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
 }
 
 export default ServiceBot;

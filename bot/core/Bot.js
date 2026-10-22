@@ -37,7 +37,7 @@ class Bot {
                 //baseLogger: console
             }
         );
-        this.reconcileService = new ReconcileService();
+        this.reconcileService = new ReconcileService(this.botClient);
         this.eventHandler = new EventHandler(this.botClient, this.db, profileManager, this.reconcileService);
         this.serviceBot = new ServiceBot(this.botClient, this.db, this.groupId);
     }
@@ -63,6 +63,9 @@ class Bot {
             await this.eventHandler.init();
             await this.setupEvents();
 
+            // Панель управления в чате админа (кнопки «Привет» и «Обновить данные»)
+            await this.eventHandler.sendAdminPanel();
+
             // Автобан «молчащих» новичков
             this.scheduler = new Scheduler();
             this.silentJoinerService = new SilentJoinerService(this.serviceBot, this.db, process.env.ADMIN_ID, this.eventHandler.inspector);
@@ -71,8 +74,8 @@ class Bot {
                 this.silentJoinerService.runOnce();
             }, 60 * 1000);
 
-            // Пересчёт сообщений по расписанию
-            var recountHours = parseInt(process.env.RECOUNT_INTERVAL_HOURS, 10) || 24;
+            // Пересчёт сообщений по расписанию (интервал берём из triggers.json)
+            var recountHours = this.eventHandler.inspector.recountIntervalHours || 24;
             this.scheduler.addTask('recount', () => {
                 this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
             }, recountHours * 3600 * 1000);
