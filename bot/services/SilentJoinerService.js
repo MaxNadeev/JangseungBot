@@ -1,5 +1,6 @@
 import { Api } from 'telegram';
 import { formatIso } from '../utils/dates.js';
+import { buildDisplayName } from '../utils/format.js';
 
 /**
  * Автобан «молчащих» новичков.
@@ -72,17 +73,14 @@ class SilentJoinerService {
     }
 
     async #notifyAdmin(userId) {
-        var displayName = userId;
+        var displayName = buildDisplayName(userId, null);
         try {
-            var userResult = await this.botService.getUserFromDB(userId);
+            var userResult = await this.botService.getUserFromAPI(userId);
             if (userResult.success) {
-                var u = userResult.user;
-                var name = [u.firstName, u.lastName].filter(Boolean).join(' ');
-                if (u.username) name = name ? `${name} (@${u.username})` : `@${u.username}`;
-                if (name) displayName = name;
+                displayName = buildDisplayName(userId, userResult.user);
             }
         } catch (e) {
-            // не критично — оставляем id
+            // не критично — остаётся ID
         }
 
         const buttonUnban = new Api.KeyboardButtonCallback({

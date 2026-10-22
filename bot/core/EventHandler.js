@@ -1,6 +1,7 @@
 import Inspector from '../utils/Inspector.js';
 import ServiceBot from '../services/ServiceBot.js';
 import { Api } from 'telegram';
+import { buildDisplayName } from '../utils/format.js';
 
 /**
  * Обработчик событий бота
@@ -360,18 +361,8 @@ class EventHandler {
                     rows: [row],
                 });
 
-                // Получаем информацию о пользователе для отправки администратору
-                var userInfo = await this.botService.getUserFromAPI(userId);
-                var username = userInfo.success ? userInfo.user.username : null;
-                var firstName = userInfo.success ? userInfo.user.firstName : null;
-                var lastName = userInfo.success ? userInfo.user.lastName : null;
-                
-                var displayName = [firstName, lastName].filter(Boolean).join(' ');
-                if (username) {
-                    displayName = displayName ? `${displayName} (@${username})` : `@${username}`;
-                } else if (!displayName) {
-                    displayName = `ID: ${userId}`;
-                }
+                // Имя/ник отправителя берём прямо из апдейта (message.sender)
+                var displayName = buildDisplayName(userId, message.sender);
 
                 // Отправляем сообщение с кнопкой
                 await this.botClient.sendMessage(this.adminId, {
@@ -429,16 +420,7 @@ class EventHandler {
             const row = new Api.KeyboardButtonRow({ buttons: [buttonRestrict, buttonAllow] });
             const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
 
-            var userInfo = await this.botService.getUserFromAPI(userId);
-            var username = userInfo.success ? userInfo.user.username : null;
-            var firstName = userInfo.success ? userInfo.user.firstName : null;
-            var lastName = userInfo.success ? userInfo.user.lastName : null;
-            var displayName = [firstName, lastName].filter(Boolean).join(' ');
-            if (username) {
-                displayName = displayName ? `${displayName} (@${username})` : `@${username}`;
-            } else if (!displayName) {
-                displayName = `ID: ${userId}`;
-            }
+            var displayName = buildDisplayName(userId, message.sender);
 
             await this.botClient.sendMessage(this.adminId, {
                 message: `Удалил фото/видео от ${displayName} — новичок (первые ${this.inspector.minMessagesForMedia} сообщений без медиа)`,
@@ -459,11 +441,13 @@ class EventHandler {
      */
     async handleUserJoined(userId, joinDate) {
         var epochMs = joinDate ? joinDate * 1000 : Date.now();
+        // проверяем ДО записи: был ли пользователь в базе (новый или вернувшийся)
+        var existed = await this.botService.getUserFromDB(userId);
         await this.db.setUserJoined(userId, epochMs);
         if (this.profileManager) {
             this.profileManager.upsertProfile(userId, { firstJoin: epochMs });
         }
-        await this.sayHello(userId);
+        await this.sayHello(userId, !existed.success);
     }
 
     /**
@@ -473,31 +457,22 @@ class EventHandler {
      * @param {string | number} userId - ID пользователя
      * @returns {Promise<void>}
      */
-    async sayHello(userId) {
-        var greeting = 'Привет, 안녕하세요';
-        var appeal;
-        var username;
-        var firstName;
-        var lastName;
-        var dbResult = await this.botService.getUserFromDB(userId);
+    async sayHello(userId, isNew) {
         var apiResult = await this.botService.getUserFromAPI(userId);
+        var username = apiResult.success ? apiResult.user.username : null;
+        var firstName = apiResult.success ? apiResult.user.firstName : null;
+        var lastName = apiResult.success ? apiResult.user.lastName : null;
 
-        if (dbResult.success) {
-            username = dbResult.user.username || null;
-            firstName = dbResult.user.firstName || null;
-            lastName = dbResult.user.lastName || null;
-            appeal = this.formatAppeal(username, firstName, lastName);
-            greeting = `Привет! С возвращением${appeal}`;
-        } else {
-            username = apiResult.user.username || null;
-            firstName = apiResult.user.firstName || null;
-            lastName = apiResult.user.lastName || null;
-            appeal = this.formatAppeal(username, firstName, lastName);
-            greeting = `Привет, 안녕하세요! ${appeal}`;
-        }
+        var name = [firstName, lastName].filter(Boolean).join(' ');
+        var at = username ? `@${String(username).replace(/^@/, '')}` : null;
+        var who = name && at ? `${name} (${at})` : (at || name || '');
+
+        var greeting = isNew
+            ? `Привет, 안녕하세요${who ? ', ' + who : ''}!`
+            : `Привет! С возвращением${who ? ', ' + who : ''}!`;
 
         await this.botClient.sendMessage(this.groupId, {
-            message: `${greeting}`
+            message: greeting
         });
     }
 
