@@ -1,5 +1,6 @@
 import DBManager from "../managers/DBManager.js";
 import { Api } from 'telegram';
+import { formatIso } from '../utils/dates.js';
 
 /**
  * Сервис для работы с данными пользователей через бота
@@ -57,7 +58,7 @@ class ServiceBot {
                 nationality: rawData.nationality || null,
                 msgCount: rawData.msgCount || 0,
                 firstJoin: rawData.firstJoin || null,
-                updatedOn: rawData.updatedOn || new Date().toLocaleString('ru-ru'),
+                updatedOn: rawData.updatedOn || formatIso(),
                 isInGroup: Boolean(rawData.isInGroup)
             };
 
@@ -295,6 +296,27 @@ class ServiceBot {
                         untilDate: 0,
                         viewMessages: false,
                         sendMessages: false
+                    })
+                })
+            );
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async kickUser(chatId, userId) {
+        try {
+            await this.bot.invoke(
+                new Api.channels.EditBanned({
+                    channel: chatId,
+                    participant: new Api.InputPeerUser({
+                        userId: parseInt(userId),
+                        accessHash: await this.getAccessHash(userId)
+                    }),
+                    bannedRights: new Api.ChatBannedRights({
+                        untilDate: Math.floor(Date.now() / 1000) + 60,
+                        viewMessages: true
                     })
                 })
             );

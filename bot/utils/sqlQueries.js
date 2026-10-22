@@ -27,7 +27,7 @@ export var SQL = {
             place INTEGER,
             nationality INTEGER,
             msgCount INTEGER,
-            firstJoin INTEGER,
+            firstJoin TEXT,
             updatedOn TEXT,
             isInGroup INTEGER,
             trusted INTEGER DEFAULT 0,
@@ -51,7 +51,7 @@ export var SQL = {
             isKicked INTEGER,
             restrictedBy TEXT,
             restrictionDate TEXT,
-            untilDate INTEGER, 
+            untilDate TEXT,
             updatedOn TEXT,
             FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE,
             FOREIGN KEY (restrictedBy) REFERENCES users(userId)
@@ -246,11 +246,15 @@ export var SQL = {
         UPDATE restricted SET isBanned = 0, isKicked = 0, updatedOn = ? WHERE userId = ?
     `,
 
+    SET_USER_KICKED: `
+        UPDATE users SET isInGroup = 0, updatedOn = ? WHERE userId = ?
+    `,
+
     GET_SILENT_JOINERS: `
         SELECT u.userId FROM users u
         LEFT JOIN restricted r ON u.userId = r.userId
         LEFT JOIN admins a ON u.userId = a.userId
-        WHERE u.firstJoin IS NOT NULL AND u.firstJoin <= ?
+        WHERE u.firstJoin IS NOT NULL AND u.firstJoin <= ? AND u.firstJoin >= ?
             AND COALESCE(u.msgCount, 0) = 0
             AND COALESCE(u.isInGroup, 0) = 1
             AND COALESCE(u.isBot, 0) = 0

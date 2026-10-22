@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import { formatIso } from '../utils/dates.js';
 
 /**
  * Резервная БД ручных данных профилей (data/profiles.db).
@@ -89,14 +90,6 @@ class ProfileManager {
         ).get([userId]) || null;
     }
 
-    #parseRuDate(str) {
-        if (!str) return null;
-        if (typeof str === 'number') return str;
-        var m = String(str).match(/^(\d{2})\.(\d{2})\.(\d{4}),\s+(\d{2}):(\d{2}):(\d{2})$/);
-        if (!m) return null;
-        return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +m[6]).getTime();
-    }
-
     /**
      * Возвращает текущий профиль: снимок userProfiles + последние значения
      * каждого исторического поля.
@@ -142,17 +135,17 @@ class ProfileManager {
      * @param {Object} fields
      */
     upsertProfile(userId, fields) {
-        var now = new Date().toLocaleString('ru-ru');
+        var now = formatIso();
         var changed = false;
 
         // нормализуем даты к строковому формату ru-ru
         if (fields.firstJoin !== undefined && fields.firstJoin !== null) {
-            fields.firstJoin = new Date(fields.firstJoin).toLocaleString('ru-ru');
+            fields.firstJoin = formatIso(fields.firstJoin);
         }
         if (fields.birthday !== undefined && fields.birthday !== null) {
             var bd = new Date(fields.birthday);
             bd.setHours(0, 0, 0, 0);
-            fields.birthday = bd.toLocaleString('ru-ru');
+            fields.birthday = formatIso(bd);
         }
 
         // --- снимок userProfiles ---
@@ -230,7 +223,7 @@ class ProfileManager {
                 place: p.place,
                 nationality: p.nationality,
                 trusted: p.trusted,
-                firstJoin: this.#parseRuDate(p.firstJoin),
+                firstJoin: p.firstJoin,
             });
             if (result.success) synced++;
         }

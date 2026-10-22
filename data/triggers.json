@@ -181,6 +181,7 @@
     "minMessages": 100,
     "silentJoinBanEnabled": true,
     "silentJoinThresholdMin": 5,
+    "silentJoinWindowMin": 60,
     "minMessagesForMedia": 5
   }
 }

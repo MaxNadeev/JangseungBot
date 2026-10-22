@@ -10,6 +10,7 @@ class Inspector {
         this.minMessages = null;
         this.silentJoinThresholdMin = 5; // дефолт значение
         this.silentJoinBanEnabled = true; // дефолт значение
+        this.silentJoinWindowMin = 60; // дефолт значение
         this.minMessagesForMedia = 5; // дефолт значение
     }
 
@@ -39,6 +40,7 @@ class Inspector {
                 this.minMessages = triggers.additionalRules?.minMessages || null;
                 this.silentJoinThresholdMin = triggers.additionalRules?.silentJoinThresholdMin ?? 5; // страховка с дефолтным значением
                 this.silentJoinBanEnabled = triggers.additionalRules?.silentJoinBanEnabled ?? true; // страховка с дефолтным значением
+                this.silentJoinWindowMin = triggers.additionalRules?.silentJoinWindowMin ?? 60; // страховка с дефолтным значением
                 this.minMessagesForMedia = triggers.additionalRules?.minMessagesForMedia ?? 5; // страховка с дефолтным значением
                 
                 console.log(`Triggers loaded. Words: ${this.triggerWords.size}. Allowed: ${this.allowedWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);

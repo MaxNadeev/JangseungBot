@@ -1,4 +1,5 @@
 import { Api } from 'telegram';
+import { formatIso } from '../utils/dates.js';
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 
@@ -6,6 +7,7 @@ class ServiceClient {
     #client = null;
     #groupId = null;
     #db = null;
+    #meId = null;
 
     constructor(client, db, groupId) {
         this.#client = client;
@@ -16,7 +18,7 @@ class ServiceClient {
     async #saveParticipantsToDB(participants, type = 'member') {
         try {
             
-            var updatedOn = new Date().toLocaleString('ru-ru');
+            var updatedOn = formatIso();
             for (var participant of participants) {
                 // await wait(Math.random() * 1); /// коэфициент замедления
                 var msgCount = await this.getUserMessageCount(participant.id);
@@ -32,6 +34,7 @@ class ServiceClient {
                     isPremium: participant.isPremium,
                     isInGroup: type === 'member' ? 1 : type === 'kicked' ? 0 : type === 'admin' ? 1 : null,
                     msgCount: msgCount,
+                    firstJoin: participant.firstJoin,
                     updatedOn: updatedOn,
                 };
 
@@ -44,21 +47,22 @@ class ServiceClient {
 
                 // для таблицы restricted
                 if (type === 'banned' || type === 'kicked') {
+                    var meId = await this.#getMeId();
                     var restrictedData = {
                         userId: participant.id,
                         isBanned: type === 'banned',
                         isKicked: type === 'kicked',
-                        restrictedBy: participant.restrictionInfo?.restrictedBy,
+                        restrictedBy: meId,
                         restrictionDate: participant.restrictionInfo?.date,
                         untilDate: participant.bannedRights?.untilDate,
                         updatedOn: updatedOn
                     };
 
-                    // Проверяем, существует ли пользователь, который наложил ограничение
+                    // restrictedBy должен существовать в users (FK)
                     if (restrictedData.restrictedBy) {
                         var restrictorExists = await this.#db.getUser(restrictedData.restrictedBy);
-                        if (!restrictorExists.success || !restrictorExists.user) {
-                            restrictedData.restrictedBy = null; // Убираем ссылку, если пользователь не найден
+                        if (!restrictorExists.success || !restrictorExists.data) {
+                            restrictedData.restrictedBy = null;
                         }
                     }
 
@@ -136,15 +140,42 @@ class ServiceClient {
             );
 
             var users = result.users || [];
-            var participants = users.map(user => ({
-                id: user.id.toString(),
-                username: user.username,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                phone: user.phone,
-                isBot: user.bot || false,
-                isPremium: user.premium || false,
-            }));
+            var participantsRaw = result.participants || [];
+
+            // userId -> unix-время входа (секунды)
+            var joinDateMap = new Map();
+            for (var p of participantsRaw) {
+                var pid = p.peer?.userId?.toString() || p.userId?.toString();
+                if (pid && p.date) joinDateMap.set(pid, p.date);
+            }
+
+            // Кикаем удалённые (заблокированные Telegram) аккаунты
+            var meId = await this.#getMeId();
+            for (var user of users) {
+                if (user.deleted) {
+                    var kickResult = await this.#kickUser(user.id.toString());
+                    if (kickResult.success) {
+                        await this.#db.markKicked(user.id.toString(), meId);
+                    }
+                    console.log(`Kicked deleted account ${user.id}:`, kickResult.success ? 'ok' : kickResult.error);
+                }
+            }
+
+            var participants = users
+                .filter(user => !user.deleted)
+                .map(user => {
+                    var joinSeconds = joinDateMap.get(user.id.toString());
+                    return {
+                        id: user.id.toString(),
+                        username: user.username,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        phone: user.phone,
+                        isBot: user.bot || false,
+                        isPremium: user.premium || false,
+                        firstJoin: joinSeconds ? joinSeconds * 1000 : null,
+                    };
+                });
 
             // Сохраняем в базу данных
             await this.#saveParticipantsToDB(participants, 'member');
@@ -213,10 +244,10 @@ class ServiceClient {
                     isBanned: !isKicked,
                     isKicked: isKicked,
                     isInGroup: isInGroup,
-                    updatedOn: new Date().toLocaleString('ru-ru'),
+                    updatedOn: formatIso(),
                     bannedRights: bannedRights ? this.#formatBannedRights(bannedRights) : null,
                     restrictionInfo: {
-                        date: new Date(participant.date).toLocaleString('ru-ru'),
+                        date: participant.date ? formatIso(participant.date * 1000) : null,
                         restrictedBy: participant.kickedBy?.toString()
                     }
                 };
@@ -279,7 +310,7 @@ class ServiceClient {
                     isPremium: user.premium || false,
                     isAdmin: true,
                     isCreator: isCreator,
-                    updatedOn: new Date().toLocaleString('ru-ru'),
+                    updatedOn: formatIso(),
                     adminRights: adminRights ? {
                         changeInfo: adminRights.changeInfo,
                         postMessages: adminRights.postMessages,
@@ -329,7 +360,7 @@ class ServiceClient {
             sendVoices: bannedRights.sendVoices,
             sendDocs: bannedRights.sendDocs,
             sendPlain: bannedRights.sendPlain,
-            untilDate: bannedRights.untilDate
+            untilDate: bannedRights.untilDate ? formatIso(bannedRights.untilDate * 1000) : null
         };
     }
 
@@ -418,6 +449,38 @@ class ServiceClient {
             return entity.accessHash;
         } catch {
             return 0;
+        }
+    }
+
+    async #getMeId() {
+        if (this.#meId) return this.#meId;
+        try {
+            var me = await this.#client.getMe();
+            this.#meId = me.id.toString();
+        } catch (e) {
+            this.#meId = null;
+        }
+        return this.#meId;
+    }
+
+    async #kickUser(userId) {
+        try {
+            await this.#client.invoke(
+                new Api.channels.EditBanned({
+                    channel: this.#groupId,
+                    participant: new Api.InputPeerUser({
+                        userId: parseInt(userId),
+                        accessHash: await this.#getAccessHash(userId)
+                    }),
+                    bannedRights: new Api.ChatBannedRights({
+                        untilDate: Math.floor(Date.now() / 1000) + 60,
+                        viewMessages: true
+                    })
+                })
+            );
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
         }
     }
 }

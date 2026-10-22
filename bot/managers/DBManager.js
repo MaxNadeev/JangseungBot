@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { SQL } from '../utils/sqlQueries.js';
+import { formatIso } from '../utils/dates.js';
 
 class DBManager {
     constructor(dbPath) {
@@ -99,7 +100,7 @@ class DBManager {
                 restrictedData.restrictedBy,
                 restrictedData.restrictionDate,
                 restrictedData.untilDate,
-                new Date().toLocaleString('ru-ru'),
+                formatIso(),
             ]);
             return { success: true, changes: result.changes };
         } catch (error) {
@@ -199,6 +200,8 @@ class DBManager {
             if (userData.trusted === undefined) userData.trusted = existingUser?.trusted ?? 0;
             if (userData.firstJoin === undefined || userData.firstJoin === null) {
                 userData.firstJoin = existingUser?.firstJoin ?? null;
+            } else {
+                userData.firstJoin = formatIso(userData.firstJoin);
             }
 
             var userStmt = this.db.prepare(SQL.INSERT_USER);
@@ -258,8 +261,8 @@ class DBManager {
                     userData.isBanned ? 1 : 0,
                     userData.isKicked ? 1 : 0,
                     userData.restrictedBy || null,
-                    new Date(+userData.restrictionDate).toLocaleString('ru-ru') || new Date().toLocaleString('ru-ru'),
-                    new Date(+userData.untilDate).toLocaleString('ru-ru') || null,
+                    formatIso(+userData.restrictionDate) || formatIso(),
+                    formatIso(+userData.untilDate),
                     userData.updatedOn,
                 ]);
                 
@@ -336,16 +339,17 @@ class DBManager {
     }
 
     setUserJoined(userId, firstJoin = Date.now()) {
-        var updatedOn = new Date().toLocaleString('ru-ru');
-        var result = this.db.prepare(SQL.SET_USER_JOINED).run([firstJoin, updatedOn, userId]);
+        var firstJoinStr = formatIso(firstJoin);
+        var updatedOn = formatIso();
+        var result = this.db.prepare(SQL.SET_USER_JOINED).run([firstJoinStr, updatedOn, userId]);
         if (result.changes === 0) {
-            this.db.prepare(SQL.INSERT_USER_JOINED).run([userId, firstJoin, updatedOn]);
+            this.db.prepare(SQL.INSERT_USER_JOINED).run([userId, firstJoinStr, updatedOn]);
         }
         return { success: true };
     }
 
     incrementUserMessage(userId) {
-        var updatedOn = new Date().toLocaleString('ru-ru');
+        var updatedOn = formatIso();
         var result = this.db.prepare(SQL.INCREMENT_USER_MSG).run([updatedOn, userId]);
         if (result.changes === 0) {
             this.db.prepare(SQL.INSERT_USER_MINIMAL).run([userId, updatedOn]);
@@ -359,20 +363,38 @@ class DBManager {
     }
 
     clearRestriction(userId) {
-        var updatedOn = new Date().toLocaleString('ru-ru');
+        var updatedOn = formatIso();
         this.db.prepare(SQL.CLEAR_RESTRICTION).run([updatedOn, userId]);
         // сбрасываем firstJoin, чтобы дать новый «тихий» интервал и не ребанить сразу
         this.setUserJoined(userId, Date.now());
         return { success: true };
     }
 
-    getSilentJoiners(cutoffMs) {
-        var rows = this.db.prepare(SQL.GET_SILENT_JOINERS).all([cutoffMs]);
+    markKicked(userId, restrictedBy = null) {
+        var now = formatIso();
+        var existing = this.db.prepare('SELECT userId FROM users WHERE userId = ?').get([userId]);
+        if (!existing) return { success: true, skipped: true };
+
+        // restrictedBy — только если он есть в users (иначе FK-ошибка)
+        var restrictor = restrictedBy
+            ? this.db.prepare('SELECT userId FROM users WHERE userId = ?').get([restrictedBy]) ? restrictedBy : null
+            : null;
+
+        this.db.prepare(SQL.SET_USER_KICKED).run([now, userId]);
+        this.db.prepare(SQL.INSERT_RESTRICTED).run([userId, 0, 1, restrictor, now, null, now]);
+        return { success: true };
+    }
+
+    getSilentJoiners(cutoffMs, floorMs = 0) {
+        var cutoffIso = formatIso(cutoffMs);
+        var floorIso = formatIso(floorMs);
+        var rows = this.db.prepare(SQL.GET_SILENT_JOINERS).all([cutoffIso, floorIso]);
         return rows.map(row => row.userId);
     }
 
     getDormantUsers(cutoffMs, maxMessages, limit) {
-        var rows = this.db.prepare(SQL.GET_DORMANT_USERS).all([cutoffMs, maxMessages, limit]);
+        var cutoffIso = formatIso(cutoffMs);
+        var rows = this.db.prepare(SQL.GET_DORMANT_USERS).all([cutoffIso, maxMessages, limit]);
         return rows.map(row => row.userId);
     }
 
@@ -404,7 +426,7 @@ class DBManager {
             var stmt = this.db.prepare(SQL.UPDATE_LAST_UPDATED);
             var result = stmt.run([
                 tableName,
-                new Date().toLocaleString('ru-ru'),
+                formatIso(),
                 Math.random().toString(36).substring(2)
             ]);
             return { success: true, changes: result.changes };

@@ -1,4 +1,5 @@
 import { Api } from 'telegram';
+import { formatIso } from '../utils/dates.js';
 
 /**
  * Автобан «молчащих» новичков.
@@ -18,6 +19,7 @@ class SilentJoinerService {
         this.inspector = inspector;
         this.isRunning = false;
         this.thresholdMin = inspector?.silentJoinThresholdMin ?? 5;
+        this.windowMin = inspector?.silentJoinWindowMin ?? 60;
         this.enabled = inspector?.silentJoinBanEnabled ?? true;
     }
 
@@ -28,7 +30,8 @@ class SilentJoinerService {
         this.isRunning = true;
         try {
             var cutoff = Date.now() - this.thresholdMin * 60000;
-            var userIds = this.db.getSilentJoiners(cutoff);
+            var floor = Date.now() - this.windowMin * 60000;
+            var userIds = this.db.getSilentJoiners(cutoff, floor);
             var banned = 0;
             for (var userId of userIds) {
                 var ok = await this.#banSilentUser(userId);
@@ -60,8 +63,8 @@ class SilentJoinerService {
             isBanned: 1,
             isKicked: 0,
             restrictedBy,
-            restrictionDate: new Date().toLocaleString('ru-ru'),
-            untilDate: 0,
+            restrictionDate: formatIso(),
+            untilDate: null,
         });
 
         await this.#notifyAdmin(userId);
@@ -94,7 +97,7 @@ class SilentJoinerService {
         const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
 
         await this.botService.bot.sendMessage(this.adminId, {
-            message: `Заблокировал ${displayName} (лишение прав) — не написал ни одного сообщения за ${this.thresholdMin} мин.`,
+            message: `Лишил прав ${displayName} — ни одного сообщения`,
             buttons: replyMarkup
         });
     }
