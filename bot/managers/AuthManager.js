@@ -20,14 +20,14 @@ class AuthManager {
                 phoneNumber: async () => await this.#prompt('Please enter your number: '),
                 password: async () => await this.#prompt('Please enter your password: '),
                 phoneCode: async () => await this.#prompt('Please enter the code you received: '),
-                onError: (err) => console.log('Auth error:', err)
+                onError: (err) => console.log(`${new Date().toLocaleString('ru-ru')} [AuthManager] Auth error:`, err)
             });
 
             var sessionString = this.#client.session.save();
             
             // Сохраняем новую сессию в .env
             await this.#updateEnvSession(sessionString);
-            console.log('[AuthManager] Сессия обновлена в .env и загружена в process.env');
+            console.log(`${new Date().toLocaleString('ru-ru')} [AuthManager] Session updated in .env and loaded into process.env`);
         }
     }
 
@@ -52,7 +52,7 @@ class AuthManager {
             // Обновляем process.env чтобы не перезапускать
             process.env.CLIENT_SESSION = sessionString;
         } catch (error) {
-            console.error('[AuthManager] Ошибка при сохранении сессии в .env:', error.message);
+            console.error(`${new Date().toLocaleString('ru-ru')} [AuthManager] Ошибка при сохранении сессии в .env:`, error.message);
         }
     }
 

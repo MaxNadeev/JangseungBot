@@ -51,10 +51,10 @@ class Inspector {
                 this.inactiveBatchSize = triggers.additionalRules?.inactiveBatchSize ?? 10;
                 this.recountIntervalHours = triggers.additionalRules?.recountIntervalHours ?? 24;
                 
-                console.log(`Triggers loaded. Words: ${this.triggerWords.size}. Allowed: ${this.allowedWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);
+                console.log(`${new Date().toLocaleString('ru-ru')} [Inspector] Triggers loaded. Words: ${this.triggerWords.size}. Allowed: ${this.allowedWords.size}. Links indicators: ${this.linkIndicators.size}. Symbols: ${this.symbols.size}.`);
             }
         } catch (error) {
-            console.error('Error loading triggers:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Inspector] Error loading triggers:`, error);
         }
     }
 
@@ -96,7 +96,7 @@ class Inspector {
 
         for (var allowedWord of this.allowedWords) {
             if (words.has(allowedWord)) {
-                console.log('allowed word found:', allowedWord);
+                console.log(`${new Date().toLocaleString('ru-ru')} [Inspector] allowed word found:`, allowedWord);
                 return true;
             }
         }

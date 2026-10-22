@@ -45,13 +45,13 @@ class ReconcileService {
                     msgId = sent && sent.id ? sent.id : null;
                 }
             } catch (e) {
-                console.error('[ReconcileService] progress edit error:', e && e.message);
+                console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] progress edit error:`, e && e.message);
                 // если edit упал (сообщение удалено) — пробуем отправить заново
                 try {
                     var sent2 = await bot.sendMessage(adminId, { message: text });
                     msgId = sent2 && sent2.id ? sent2.id : null;
                 } catch (e2) {
-                    console.error('[ReconcileService] progress send error:', e2 && e2.message);
+                    console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] progress send error:`, e2 && e2.message);
                 }
             }
         };
@@ -70,7 +70,7 @@ class ReconcileService {
         try {
             await this.botClient.sendMessage(process.env.ADMIN_ID, { message: text });
         } catch (e) {
-            console.error('[ReconcileService] notify error:', e && e.message);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] notify error:`, e && e.message);
         }
     }
 
@@ -87,16 +87,16 @@ class ReconcileService {
             await progress.update('Подключаюсь к клиенту…');
 
             var session = process.env.CLIENT_SESSION || '';
-            console.log('[ReconcileService] process.env.CLIENT_SESSION длина:', session.length);
-            console.log('[ReconcileService] process.env.CLIENT_SESSION первые 50 символов:', session.substring(0, 50));
+            console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] process.env.CLIENT_SESSION length:`, session.length);
+            console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] process.env.CLIENT_SESSION first 50 symbols:`, session.substring(0, 50));
 
             if (!session) {
-                console.error('[ReconcileService] CLIENT_SESSION пуста в process.env');
+                console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] CLIENT_SESSION empty inprocess.env`);
                 await progress.update('❌ Ошибка: нет сессии клиента');
                 return { success: false, error: 'нет сессии клиента' };
             }
 
-            console.log('[ReconcileService] Создаю TelegramClient с сессией...');
+            console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] Создаю TelegramClient с сессией...`);
             var client = new TelegramClient(
                 new StringSession(session),
                 parseInt(process.env.API_ID),
@@ -110,22 +110,22 @@ class ReconcileService {
             // checkAuthorization() сам НЕ подключается (invoke требует уже установленный connect),
             // поэтому подключаемся явно, как это делает client.start() в --client режиме.
             var connected = await client.connect();
-            console.log('[ReconcileService] connect результат:', connected);
+            console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] connect результат:`, connected);
 
             var authorized = false;
             try {
-                console.log('[ReconcileService] Проверяю авторизацию...');
+                console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] Checking authorization...`);
                 authorized = await client.checkAuthorization();
-                console.log('[ReconcileService] checkAuthorization результат:', authorized);
+                console.log(`${new Date().toLocaleString('ru-ru')} [ReconcileService] checkAuthorization result:`, authorized);
             } catch (e) {
-                console.error('[ReconcileService] checkAuthorization ошибка:', e.message);
+                console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] checkAuthorization error:`, e.message);
                 authorized = false;
             }
             if (!authorized) {
-                console.error('[ReconcileService] Клиент не авторизован. Сессия устарела или невалидна.');
+                console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] Client is not authorized. Session has expired or is invalid.`);
                 await client.destroy().catch(() => {});
-                await progress.update('❌ Ошибка: сессия устарела или невалидна');
-                return { success: false, error: 'сессия клиента устарела или невалидна' };
+                await progress.update('❌ Error: session has expired or is invalid');
+                return { success: false, error: 'session has expired or is invalid' };
             }
 
             var serviceClient = new ServiceClient(
@@ -158,7 +158,7 @@ class ReconcileService {
                 seconds: seconds
             };
         } catch (error) {
-            console.error('ReconcileService error:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ReconcileService] Error:`, error);
             var errMsg = error && error.message ? error.message : String(error);
             await progress.update('❌ Ошибка: ' + errMsg);
             return { success: false, error: errMsg };

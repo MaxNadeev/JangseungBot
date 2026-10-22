@@ -49,7 +49,7 @@ class AdminLogService {
 
             return this.#parseEvents(result);
         } catch (error) {
-            console.error('Error fetching admin log events:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [AdminLogService] Error fetching admin log events:`, error);
             throw error;
         }
     }
@@ -79,7 +79,7 @@ class AdminLogService {
 
                 events.push(parsedEvent);
             } catch (error) {
-                console.error('Error parsing admin log event:', error);
+                console.error(`${new Date().toLocaleString('ru-ru')} [AdminLogService] Error parsing admin log event:`, error);
             }
         });
 

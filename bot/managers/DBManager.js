@@ -31,16 +31,16 @@ class DBManager {
             var needsInit = !this.isDatabaseInitialized();
             
             if (needsInit) {
-                console.log('Initializing new database...');
+                console.log(`${new Date().toLocaleString('ru-ru')} [DBManager] Initializing new database...`);
                 await this.createTables();
-                console.log('Database initialized successfully');
+                console.log(`${new Date().toLocaleString('ru-ru')} [DBManager] Database initialized successfully`);
             } else {
-                console.log('Database already exists, skipping initialization');
+                console.log(`${new Date().toLocaleString('ru-ru')} [DBManager] Database already exists, skipping initialization`);
             }
             
             return { success: true, initialized: needsInit };
         } catch (error) {
-            console.error('Database initialization failed:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [DBManager] Database initialization failed:`, error);
             return { success: false, error: error.message };
         }
     }
@@ -298,7 +298,7 @@ class DBManager {
             return { success: true };
         } catch (error) {
             this.db.exec('ROLLBACK');
-            console.error('Error in upsertUser:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [DBManager] Error in upsertUser:`, error);
             return { success: false, error: error.message };
         }
     }

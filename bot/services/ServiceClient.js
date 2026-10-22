@@ -48,7 +48,20 @@ class ServiceClient {
                 kicked: 'Перебираю кики…',
                 admin: 'Перебираю админов…'
             }[type];
-            if (stageLabel) {
+            var stageLabelConsole = {
+                member: 'Processing members…',
+                banned: 'Processing bans…',
+                kicked: 'Processing kicks…',
+                admin: 'Processing admins…'
+            }[type];
+            var stageLabelConsole = {
+                member: 'Processing members…',
+                banned: 'Processing bans…',
+                kicked: 'Processing kicks…',
+                admin: 'Processing admins…'
+            }[type];
+            if (stageLabel && stageLabelConsole) {
+                console.log(`${new Date().toLocaleString('ru-ru')} ${stageLabelConsole}`);
                 await this.#reportStage(stageLabel);
             }
             
@@ -56,7 +69,6 @@ class ServiceClient {
             for (var participant of participants) {
                 // await wait(Math.random() * 1); /// коэфициент замедления
                 var msgCount = await this.getUserMessageCount(participant.id);
-                console.log('#saveParticipantsToDB msgCount: ', msgCount);
                 // для таблицы users
                 var userData = {
                     id: participant.id,
@@ -75,7 +87,7 @@ class ServiceClient {
                 // Сохраняем в users
                 var result = await this.#db.upsertUser(userData);
                 if (!result.success) {
-                    console.error('Failed to save user:', participant.id);
+                    console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to save user:`, participant.id);
                     continue;
                 }
 
@@ -103,7 +115,7 @@ class ServiceClient {
                     // Сохраняем в таблицу restricted
                     var restrictedResult = await this.#db.upsertRestricted(restrictedData);
                     if (!restrictedResult.success) {
-                        console.error('Failed to save restricted data for:', participant.id);
+                        console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to save restricted data for:`, participant.id);
                         continue;
                     }
 
@@ -114,7 +126,7 @@ class ServiceClient {
                             ...participant.bannedRights
                         });
                         if (!rightsResult.success) {
-                            console.error('Failed to save restricted rights for:', participant.id);
+                            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to save restricted rights for:`, participant.id);
                         }
                     }
                 }
@@ -138,7 +150,7 @@ class ServiceClient {
                     // Сохраняем в таблицу admins
                     var adminResult = await this.#db.upsertAdmin(adminData);
                     if (!adminResult.success) {
-                        console.error('Failed to save admin data for:', participant.id);
+                        console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to save admin data for:`, participant.id);
                         continue;
                     }
 
@@ -149,14 +161,14 @@ class ServiceClient {
                             ...participant.adminRights
                         });
                         if (!adminRightsResult.success) {
-                            console.error('Failed to save admin rights for:', participant.id);
+                            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to save admin rights for:`, participant.id);
                         }
                     }
                 }
             }
             return { success: true, count: participants.length };
         } catch (error) {
-            console.error('Error saving participants:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error saving participants:`, error);
             return { success: false, error: error.message };
         }
     }
@@ -227,7 +239,7 @@ class ServiceClient {
                         await this.#db.markKicked(user.id.toString(), meId);
                         kickedNames.push(buildDisplayName(user.id.toString(), user));
                     }
-                    console.log(`Kicked deleted account ${user.id}:`, kickResult.success ? 'ok' : kickResult.error);
+                    console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error kicking deleted account ${user.id}:`, kickResult.success ? 'ok' : kickResult.error);
                 }
             }
 
@@ -243,7 +255,7 @@ class ServiceClient {
                         message: `Удалил удалённые аккаунты (${kickedNames.length}):\n${kickedNames.join('\n')}`
                     });
                 } catch (e) {
-                    console.error('Failed to notify admin about kicked accounts:', e);
+                    console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to notify admin about kicked accounts:`, e);
                 }
             }
 
@@ -268,7 +280,7 @@ class ServiceClient {
             
             return participants;
         } catch (error) {
-            console.error('Error getting recent participants:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error getting recent participants:`, error);
             return [];
         }
     }
@@ -291,7 +303,7 @@ class ServiceClient {
             var { users, participants } = await this.#fetchParticipantsPages(filter);
 
             if (!participants.length) {
-                console.log(`No ${filterType} participants data found`);
+                console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] No ${filterType} participants data found`);
                 return [];
             }
 
@@ -336,7 +348,7 @@ class ServiceClient {
             
             return restrictedParticipants;
         } catch (error) {
-            console.error(`Error getting ${filterType} participants:`, error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error getting ${filterType} participants:`, error);
             return [];
         }
     }
@@ -354,7 +366,7 @@ class ServiceClient {
             );
 
             if (!result || !result.users || !result.participants) {
-                console.log('No admin data found');
+                console.log(`${new Date().toLocaleString('ru-ru')} [ServiceClient] No admin data found`);
                 return [];
             }
 
@@ -411,7 +423,7 @@ class ServiceClient {
             
             return admins;
         } catch (error) {
-            console.error('Error getting chat admins:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error getting chat admins:`, error);
             return [];
         }
     }
@@ -446,7 +458,7 @@ class ServiceClient {
         try {
             var numericUserId = Number(userId);
             if (isNaN(numericUserId)) {
-                console.error('Invalid user ID format');
+                console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Invalid user ID format`);
                 return false;
             }
 
@@ -468,7 +480,7 @@ class ServiceClient {
 
             return isMember && !isBanned;
         } catch (error) {
-            console.error('Error checking user membership:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error checking user membership:`, error);
             return false;
         }
     }
@@ -482,7 +494,7 @@ class ServiceClient {
         try {
             var numericUserId = Number(userId);
             if (isNaN(numericUserId)) {
-                console.error('Invalid user ID format');
+                console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Invalid user ID format`);
                 return 0;
             }
 
@@ -516,7 +528,7 @@ class ServiceClient {
 
             return count;
         } catch (error) {
-            console.error(`Error getting message count for user ${userId}:`, error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error getting message count for user ${userId}:`, error);
             return -1;
         }
     }
@@ -558,6 +570,7 @@ class ServiceClient {
             );
             return { success: true };
         } catch (error) {
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Error kicking user ${userId}:`, error);
             return { success: false, error: error.message };
         }
     }

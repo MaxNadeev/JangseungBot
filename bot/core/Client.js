@@ -27,16 +27,16 @@ class Client {
     async start() {
         var authManager = new AuthManager(this.#client);
         await authManager.authenticate();
-        console.log('Client started successfully');
+        console.log(`${new Date().toLocaleString('ru-ru')} [Client] Client started successfully`);
     }
 
     async getRecentParticipants(limit = 500) {
         try {
             var participants = await this.#ServiceClient.getRecentParticipants(limit);
-            console.log(`Found ${participants.length} recent participants`);
+            console.log(`${new Date().toLocaleString('ru-ru')} [Client] Found ${participants.length} recent participants`);
             return participants;
         } catch (error) {
-            console.error('Error getting recent participants:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error getting recent participants:`, error);
             return [];
         }
     }
@@ -55,10 +55,10 @@ class Client {
     async getRestrictedParticipants(filterType = 'banned', limit = 500) {
         try {
             var restrictedUsers = await this.#ServiceClient.getRestrictedParticipants(filterType, limit);
-            console.log(`Found ${filterType} participants: `, restrictedUsers.length);
+            console.log(`${new Date().toLocaleString('ru-ru')} [Client] Found ${filterType} participants: `, restrictedUsers.length);
             return restrictedUsers;
         } catch (error) {
-            console.error(`Error getting ${filterType} participants:`, error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error getting ${filterType} participants:`, error);
             return [];
         }
     }
@@ -76,10 +76,10 @@ class Client {
     async getChatAdmins(includeCreator = true, limit = 30) {
         try {
             var admins = await this.#ServiceClient.getChatAdmins(includeCreator = true, limit = 30);
-            console.log('Found admins: ', admins.length);
+            console.log(`${new Date().toLocaleString('ru-ru')} [Client] Found admins: `, admins.length);
             return admins;
         } catch (error) {
-            console.error('Error getting chat admins:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error getting chat admins:`, error);
             return [];
         }
     }
@@ -90,7 +90,7 @@ class Client {
             var events = await adminLogService.fetchEvents(limit, eventType);
             return events;
         } catch (error) {
-            console.error('Error getting admin log:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error getting admin log:`, error);
             return [];
         }
     }
@@ -98,10 +98,10 @@ class Client {
     async getUserMessageCount(userId) {
         try {
             var count = await this.#ServiceClient.getUserMessageCount(userId);
-            console.log(`User ${userId} has ${count} messages`);
+            console.log(`${new Date().toLocaleString('ru-ru')} [Client] User ${userId} has ${count} messages`);
             return count;
         } catch (error) {
-            console.error('Error in getUserMessageCount:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error in getUserMessageCount:`, error);
             return 0;
         }
     }
@@ -109,17 +109,17 @@ class Client {
     async isUserMember(userId) {
         try {
             var isMember = await this.#ServiceClient.isUserInGroup(userId);
-            console.log(isMember ? 'User is member' : 'User not member');
+            console.log(`${new Date().toLocaleString('ru-ru')} [Client] User ${userId} is ${isMember ? '' : 'not '}member`);
             return isMember;
         } catch (error) {
-            console.error('Error checking user membership:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [Client] Error checking user membership:`, error);
             return false;
         }
     }
 
     async stop() {
         await this.#client.disconnect();
-        console.log('Client stopped');
+        console.log(`${new Date().toLocaleString('ru-ru')} [Client] Client stopped`);
     }
 }
 

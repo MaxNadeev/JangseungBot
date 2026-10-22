@@ -34,7 +34,7 @@ var runBot = async () => {
     //         console.log(role, userId, userObj);
     //     }
     // } catch (error) {
-    //     console.log('Error of getting user by ID from database', error);
+    //     console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error of getting user by ID from database`, error);
     // }
     
 
@@ -51,18 +51,18 @@ var runClient = async () => {
 
     var participants = await client.getRecentParticipants();
     // console.log(participants);
-    console.log('Recent participants:', participants.length);
+    console.log(`${new Date().toLocaleString('ru-ru')} [Client] Recent participants:`, participants.length);
 
     var bannedUsers = await client.getRestrictedParticipants();
-    console.log('Banned users:', bannedUsers.length);
-    
+    console.log(`${new Date().toLocaleString('ru-ru')} [Client] Banned users:`, bannedUsers.length);
+
     var kickedUsers = await client.getRestrictedParticipants('kicked');
     // console.log(kickedUsers[0],kickedUsers[1],kickedUsers[2], kickedUsers[3], kickedUsers[4]);
-    console.log('Kicked users:', kickedUsers.length);
+    console.log(`${new Date().toLocaleString('ru-ru')} [Client] Kicked users:`, kickedUsers.length);
 
     var admins = await client.getChatAdmins();
     // console.log(admins);
-    console.log('Chat admins:', admins.length);
+    console.log(`${new Date().toLocaleString('ru-ru')} [Client] Chat admins:`, admins.length);
 
     // тест группа ID
     // var testUserIds = {
@@ -95,11 +95,11 @@ var runClient = async () => {
     
     // var userId = 7073986937;
     // var msgCount = await client.getUserMessageCount(userId);
-    // console.log(`User has sent ${msgCount} messages`);
+    // console.log(`${new Date().toLocaleString('ru-ru')} [Client] User has sent ${msgCount} messages`);
     
     // var userId = 7073986937;
     // var isMember = await client.isUserMember(userId);
-    // console.log(isMember ? 'User is member' : 'User not member');
+    // console.log(`${new Date().toLocaleString('ru-ru')} [Client] ${isMember ? 'User is member' : 'User not member'}`);
     
     // var userId = 7073986937;
     // var userData = await dbManager.getUsersFromDB(userId);
@@ -117,5 +117,5 @@ if (mode === '--bot') {
 } else if (mode === '--client') {
     runClient();
 } else {
-    console.log('Please specify mode: --bot or --client');
+    console.error(`${new Date().toLocaleString('ru-ru')} [index] Please specify mode: --bot or --client`);
 }

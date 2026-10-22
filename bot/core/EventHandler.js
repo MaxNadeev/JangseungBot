@@ -288,7 +288,7 @@ class EventHandler {
             
             return false;
         } catch (error) {
-            console.error('Error handling command:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling command:`, error);
             return false;
         }
     }
@@ -330,10 +330,10 @@ class EventHandler {
                 replyTo: messageId
             });
             
-            console.log(`Replied to /hi command from user ${userId}`);
+            console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] Replied to /hi command from user ${userId}`);
             
         } catch (error) {
-            console.error('Error handling /hi command:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling /hi command:`, error);
         }
     }
 
@@ -373,7 +373,7 @@ class EventHandler {
      * @returns {Promise<void>}
      */
     async handleTriggerMessage(message, userId) {
-        console.log('message:', message);
+        console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] message:`, message);
         try {            
             // Удаляем сообщение
             var deleteResult = await this.botService.deleteMessage(
@@ -409,10 +409,10 @@ class EventHandler {
                     buttons: replyMarkup
                 });
             } else {
-                console.error('Failed to delete message:', deleteResult.error);
+                console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Failed to delete message:`, deleteResult.error);
             }
         } catch (error) {
-            console.error('Error handling trigger message:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling trigger message:`, error);
         }
     }
 
@@ -452,7 +452,7 @@ class EventHandler {
             }
             return false;
         } catch (error) {
-            console.error('Error handling scheduled message:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling scheduled message:`, error);
             return false;
         }
     }
@@ -485,7 +485,7 @@ class EventHandler {
         try {
             var deleteResult = await this.botService.deleteMessage(this.groupId, message.id);
             if (!deleteResult.success) {
-                console.error('Failed to delete media message:', deleteResult.error);
+                console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Failed to delete media message:`, deleteResult.error);
                 return;
             }
 
@@ -509,7 +509,7 @@ class EventHandler {
                 buttons: replyMarkup
             });
         } catch (error) {
-            console.error('Error handling media violation:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling media violation:`, error);
         }
     }
 
@@ -590,7 +590,7 @@ class EventHandler {
      * @returns {Promise<void>}
      */
     async handleCallbackQuery(update) {
-        console.log('handleCallbackQuery update', update);
+        console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] handleCallbackQuery update`, update);
         try {
             const data = update.data.toString();
             const userId = data.split('_')[1];
@@ -626,7 +626,7 @@ class EventHandler {
             }));
 
         } catch (error) {
-            console.error('Error handling callback query:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Error handling callback query:`, error);
         }
     }
 }

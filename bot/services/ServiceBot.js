@@ -114,7 +114,7 @@ class ServiceBot {
 
             return { success: true, user };
         } catch (error) {
-            console.error('Error in getUserFromDB:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error in getUserFromDB:`, error);
             return { success: false, error: error.message };
         }
     }
@@ -216,7 +216,7 @@ class ServiceBot {
 
             return { success: true, user: userData };
         } catch (error) {
-            console.error('Error in getUserFromAPI:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error in getUserFromAPI:`, error);
             return { 
                 success: false, 
                 error: error.message,
@@ -249,7 +249,7 @@ class ServiceBot {
             );
             return { success: true };
         } catch (error) {
-            console.error('Error deleting message:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error deleting message:`, error);
             return { success: false, error: error.message };
         }
     }

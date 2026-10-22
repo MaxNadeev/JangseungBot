@@ -89,7 +89,7 @@ class Bot {
             var date = new Date().toLocaleString('ru-ru');
             console.log(`${date} Bot started. Monitoring group: ${process.env.GROUP_ID}`);
         } catch (error) {
-            console.error('Bot startup failed:', error);
+            console.error(`${date} [Bot] Bot startup failed:`, error);
             process.exit(1);
         }
     }

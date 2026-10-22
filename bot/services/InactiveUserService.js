@@ -69,7 +69,7 @@ class InactiveUserService {
 
             return { success: true, reported: userIds.length };
         } catch (error) {
-            console.error('InactiveUserService error:', error);
+            console.error(`${new Date().toLocaleString('ru-ru')} [InactiveUserService] Error:`, error);
             return { success: false, error: error.message };
         } finally {
             this.isRunning = false;
