@@ -6,6 +6,7 @@ import ServiceBot from '../services/ServiceBot.js';
 import Scheduler from '../utils/Scheduler.js';
 import SilentJoinerService from '../services/SilentJoinerService.js';
 import ReconcileService from '../services/ReconcileService.js';
+import InactiveUserService from '../services/InactiveUserService.js';
 
 class Bot {
     db;
@@ -75,6 +76,12 @@ class Bot {
             this.scheduler.addTask('recount', () => {
                 this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
             }, recountHours * 3600 * 1000);
+
+            // Неактивные «старожилы» — предложение админу (раз в сутки)
+            this.inactiveUserService = new InactiveUserService(this.serviceBot, this.db, process.env.ADMIN_ID, this.eventHandler.inspector);
+            this.scheduler.addTask('inactiveUsers', () => {
+                this.inactiveUserService.runOnce();
+            }, 24 * 3600 * 1000);
 
             var date = new Date().toLocaleString('ru-ru');
             console.log(`${date} Bot started. Monitoring group: ${process.env.GROUP_ID}`);

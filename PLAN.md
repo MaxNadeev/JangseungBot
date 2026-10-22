@@ -1,7 +1,7 @@
 # План работ (v.1) — JangseungBot
 
 > После аппрува: **Этап 0** выполняется сразу — план записывается в корень (`PLAN.md`), создаётся и заполняется `Version history.md`.
-> **Статус:** ✅ Этапы 0–7 выполнены · 🔄 Этап 8 — следующий · ⏳ Этапы 9–10 — в очереди.
+> **Статус:** ✅ Этапы 0–8 выполнены · 🔄 Этап 9 — следующий · ⏳ Этап 10 — в очереди.
 
 ## Глоссарий
 
@@ -232,7 +232,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## 🔄 Этап 8 — Неактивные «старожилы»: предложение админу (батчами) (следующий)
+## ✅ Этап 8 — Неактивные «старожилы»: предложение админу (батчами) (выполнено)
 
 Файлы: `data/triggers.json` (+ `Inspector.loadTriggers`), `bot/utils/Scheduler.js`, `bot/core/Bot.js`.
 
@@ -247,7 +247,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## ⏳ Этап 9 — Отложенные сообщения (автоудаление)
+## 🔄 Этап 9 — Отложенные сообщения (автоудаление) (следующий)
 
 Файл: `bot/core/EventHandler.js` (+ `ServiceBot.deleteMessage`).
 

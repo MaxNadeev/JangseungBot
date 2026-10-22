@@ -182,6 +182,9 @@
     "silentJoinBanEnabled": true,
     "silentJoinThresholdMin": 5,
     "silentJoinWindowMin": 60,
-    "minMessagesForMedia": 5
+    "minMessagesForMedia": 5,
+    "inactiveDays": 365,
+    "inactiveMaxMessages": 1,
+    "inactiveBatchSize": 10
   }
 }
