@@ -5,6 +5,7 @@ import EventHandler from './EventHandler.js';
 import ServiceBot from '../services/ServiceBot.js';
 import Scheduler from '../utils/Scheduler.js';
 import SilentJoinerService from '../services/SilentJoinerService.js';
+import ReconcileService from '../services/ReconcileService.js';
 
 class Bot {
     db;
@@ -35,7 +36,8 @@ class Bot {
                 //baseLogger: console
             }
         );
-        this.eventHandler = new EventHandler(this.botClient, this.db, profileManager);
+        this.reconcileService = new ReconcileService();
+        this.eventHandler = new EventHandler(this.botClient, this.db, profileManager, this.reconcileService);
         this.serviceBot = new ServiceBot(this.botClient, this.db, this.groupId);
     }
 
@@ -67,6 +69,12 @@ class Bot {
             this.scheduler.addTask('silentJoiner', () => {
                 this.silentJoinerService.runOnce();
             }, 60 * 1000);
+
+            // Пересчёт сообщений по расписанию
+            var recountHours = parseInt(process.env.RECOUNT_INTERVAL_HOURS, 10) || 24;
+            this.scheduler.addTask('recount', () => {
+                this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
+            }, recountHours * 3600 * 1000);
 
             var date = new Date().toLocaleString('ru-ru');
             console.log(`${date} Bot started. Monitoring group: ${process.env.GROUP_ID}`);

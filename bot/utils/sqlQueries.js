@@ -219,7 +219,7 @@ export var SQL = {
     `,
 
     SET_TRUSTED: `
-        UPDATE users SET trusted = ? WHERE userId = ?
+        UPDATE users SET trusted = ?, updatedOn = ? WHERE userId = ?
     `,
 
     SET_USER_JOINED: `
@@ -294,7 +294,7 @@ export var SQL = {
             rr.sendGames, rr.sendInline, rr.embedLinks, rr.sendPolls, rr.changeInfo,
             rr.inviteUsers, rr.pinMessages, rr.manageTopics, rr.sendPhotos, rr.sendVideos,
             rr.sendRoundvideos, rr.sendAudios, rr.sendVoices, rr.sendDocs, rr.sendPlain,
-            a.isCreator, a.updatedOn,
+            a.isCreator, a.updatedOn AS adminUpdatedOn,
             ar.changeInfo AS adminChangeInfo, ar.postMessages, ar.editMessages, ar.deleteMessages,
             ar.banUsers, ar.inviteUsers, ar.pinMessages AS adminPinMessages, ar.addAdmins, ar.canAnonymous,
             ar.manageCall, ar.other, ar.manageTopics AS adminManageTopics

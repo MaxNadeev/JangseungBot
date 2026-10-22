@@ -334,7 +334,8 @@ class DBManager {
     }
 
     setTrusted(userId, trusted = 1) {
-        this.db.prepare(SQL.SET_TRUSTED).run([trusted ? 1 : 0, userId]);
+        var updatedOn = formatIso();
+        this.db.prepare(SQL.SET_TRUSTED).run([trusted ? 1 : 0, updatedOn, userId]);
         return { success: true };
     }
 

@@ -1,7 +1,7 @@
 # План работ (v.1) — JangseungBot
 
 > После аппрува: **Этап 0** выполняется сразу — план записывается в корень (`PLAN.md`), создаётся и заполняется `Version history.md`.
-> **Статус:** ✅ Этапы 0–6 выполнены · 🔄 Этап 7 — следующий · ⏳ Этапы 8–10 — в очереди.
+> **Статус:** ✅ Этапы 0–7 выполнены · 🔄 Этап 8 — следующий · ⏳ Этапы 9–10 — в очереди.
 
 ## Глоссарий
 
@@ -216,7 +216,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## 🔄 Этап 7 — Пересчёт по расписанию и по кнопке (следующий)
+## ✅ Этап 7 — Пересчёт по расписанию и по кнопке (выполнено)
 
 Файлы: новый `bot/services/ReconcileService.js`, `bot/core/Bot.js`, `bot/core/EventHandler.js`, `.env.example`.
 
@@ -232,7 +232,7 @@ CREATE INDEX IF NOT EXISTS idx_history_userId ON userProfileHistory(userId);
 
 ---
 
-## ⏳ Этап 8 — Неактивные «старожилы»: предложение админу (батчами)
+## 🔄 Этап 8 — Неактивные «старожилы»: предложение админу (батчами) (следующий)
 
 Файлы: `data/triggers.json` (+ `Inspector.loadTriggers`), `bot/utils/Scheduler.js`, `bot/core/Bot.js`.
 

@@ -59,7 +59,8 @@ class ServiceBot {
                 msgCount: rawData.msgCount || 0,
                 firstJoin: rawData.firstJoin || null,
                 updatedOn: rawData.updatedOn || formatIso(),
-                isInGroup: Boolean(rawData.isInGroup)
+                isInGroup: Boolean(rawData.isInGroup),
+                trusted: Boolean(rawData.trusted)
             };
 
             if (rawData.deleteMessages !== null) {

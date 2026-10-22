@@ -21,13 +21,14 @@ class EventHandler {
      * @param {TelegramClient} bot - Экземпляр Telegram клиента
      * @param {DBManager} db - Менеджер базы данных
      */
-    constructor(bot, db, profileManager) {
+    constructor(bot, db, profileManager, reconcileService) {
         this.botClient = bot;
         this.groupId = process.env.GROUP_ID;
         this.adminId = process.env.ADMIN_ID;
         this.inspector = new Inspector();
         this.db = db;
         this.profileManager = profileManager;
+        this.reconcileService = reconcileService;
         this.botService = new ServiceBot(this.botClient, this.db, this.groupId);
         this.botUsername = null; // Добавим для хранения username бота
     }
@@ -133,9 +134,9 @@ class EventHandler {
                     console.log(`${new Date().toLocaleString('ru-ru')} user in DB`);
                     userMsgCount = userData.user.msgCount || 0;
                     
-                    // Админы: пропускаем проверку, но считаем
-                    if (userData.user.adminRights) {
-                        console.log(`${new Date().toLocaleString('ru-ru')} Admin message, skipping check`);
+                    // Админы и доверенные: пропускаем проверку, но считаем
+                    if (userData.user.adminRights || userData.user.trusted) {
+                        console.log(`${new Date().toLocaleString('ru-ru')} Admin/trusted message, skipping check`);
                         await this.db.incrementUserMessage(userId);
                         return;
                     }
@@ -225,6 +226,24 @@ class EventHandler {
                 }
                 
                 await this.handleHiCommand(message);
+                return true;
+            }
+
+            if (command === 'recount') {
+                var senderId = message.fromId?.userId?.value?.toString() || message.peerId?.userId?.value?.toString();
+                if (senderId !== this.adminId) return false;
+
+                const buttonRecount = new Api.KeyboardButtonCallback({
+                    text: '▶️ Запустить пересчёт',
+                    data: Buffer.from('recount_start'),
+                });
+                const row = new Api.KeyboardButtonRow({ buttons: [buttonRecount] });
+                const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
+
+                await this.botClient.sendMessage(this.adminId, {
+                    message: 'Пересчёт сообщений участников:',
+                    buttons: replyMarkup
+                });
                 return true;
             }
             
@@ -520,7 +539,19 @@ class EventHandler {
             const userId = data.split('_')[1];
             const action = data.split('_')[0];
 
-            if (action === 'unban') {
+            if (action === 'recount_start') {
+                await this.botClient.sendMessage(this.adminId, { message: 'Пересчёт запущен…' });
+                var result = await this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
+                if (result.success) {
+                    await this.botClient.sendMessage(this.adminId, {
+                        message: `Пересчёт завершён: участников ${result.members}, банов ${result.banned}, киков ${result.kicked}, админов ${result.admins}, ${result.seconds} сек.`
+                    });
+                } else {
+                    await this.botClient.sendMessage(this.adminId, {
+                        message: `Ошибка пересчёта: ${result.error}`
+                    });
+                }
+            } else if (action === 'unban') {
                 await this.botService.unbanUser(this.groupId, userId);
                 await this.db.clearRestriction(userId);
                 await this.botClient.sendMessage(this.adminId, {
@@ -532,8 +563,11 @@ class EventHandler {
                     message: `Пользователь ${userId} был ограничен`
                 });
             } else if (action === 'allow') {
-                // Логика для кнопки "Доверять"
-                // Можно пользователя пометить как доверенного
+                // Помечаем пользователя как доверенного (в profiles и в users)
+                if (this.profileManager) {
+                    this.profileManager.upsertProfile(userId, { trusted: 1 });
+                }
+                await this.db.setTrusted(userId, 1);
                 await this.botClient.sendMessage(this.adminId, {
                     message: `Пользователь ${userId} добавлен в белый список`
                 });
