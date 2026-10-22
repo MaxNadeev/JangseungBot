@@ -103,6 +103,9 @@ class ReconcileService {
                 process.env.API_HASH,
                 { connectionRetries: 5 }
             );
+            // Гасим служебные логи GramJS у разового клиента пересчёта: иначе его фоновый
+            // _updateLoop при shutdown кидает безобидный «Error: TIMEOUT» (пинг уже отключённого сендера).
+            client.setLogLevel('none');
 
             // checkAuthorization() сам НЕ подключается (invoke требует уже установленный connect),
             // поэтому подключаемся явно, как это делает client.start() в --client режиме.
@@ -143,7 +146,7 @@ class ReconcileService {
             await client.destroy().catch(() => {});
 
             var seconds = Math.round((Date.now() - started) / 1000);
-            await progress.update(`✅ Апдейт выполнен: участников ${members.length}, банов ${banned.length}, киков ${kicked.length}, админов ${admins.length}, удалено удалённых аккаунтов ${serviceClient.deletedKicked}, ${seconds} сек.`);
+            await progress.update(`✅ Апдейт выполнен\n\nУчастников: ${members.length}\nБанов: ${banned.length}\nКиков: ${kicked.length}\nАдминов: ${admins.length}\nУдалено удалённых аккаунтов: ${serviceClient.deletedKicked}\nВыполненто за ${seconds} сек.`);
 
             return {
                 success: true,
