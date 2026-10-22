@@ -97,6 +97,11 @@ class EventHandler {
                 var userId = message.fromId?.userId?.value?.toString();
                 if (!userId) return;
                 
+                // Отложенное сообщение (отправитель не в группе) → автоудаление
+                if (await this.#handleScheduledMessage(userId, message)) {
+                    return;
+                }
+                
                 // Команда (/hi): сообщение сохраняется — считаем
                 if (await this.handleCommands(message)) {
                     await this.db.incrementUserMessage(userId);
@@ -378,6 +383,40 @@ class EventHandler {
     }
 
     /**
+     * Удаляет отложенное сообщение от пользователя, которого нет в группе
+     * (isInGroup = 0 в БД) и уведомляет админа.
+     * @async
+     * @param {string} userId - ID отправителя
+     * @param {Object} message - Объект сообщения
+     * @returns {Promise<boolean>} true, если сообщение удалено как отложенное
+     */
+    async #handleScheduledMessage(userId, message) {
+        try {
+            var dbUser = await this.db.getUser(userId);
+            if (!dbUser.success || !dbUser.data) return false;
+
+            // «старожилы» (много сообщений) не проверяем — как в инспекторе по minMessages
+            var msgCount = dbUser.data.msgCount || 0;
+            if (this.inspector.minMessages && msgCount >= this.inspector.minMessages) {
+                return false;
+            }
+
+            if (dbUser.data.isInGroup === 0) {
+                await this.botService.deleteMessage(this.groupId, message.id);
+                var displayName = buildDisplayName(userId, dbUser.data);
+                await this.botClient.sendMessage(this.adminId, {
+                    message: `Удалил отложенное сообщение от ${displayName} (пользователь не в группе)`
+                });
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error handling scheduled message:', error);
+            return false;
+        }
+    }
+
+    /**
      * Определяет, является ли сообщение фото/видео/GIF
      * @param {Object} message - Объект сообщения
      * @returns {boolean}
@@ -423,7 +462,7 @@ class EventHandler {
             var displayName = buildDisplayName(userId, message.sender);
 
             await this.botClient.sendMessage(this.adminId, {
-                message: `Удалил фото/видео от ${displayName} — новичок (первые ${this.inspector.minMessagesForMedia} сообщений без медиа)`,
+                message: `Удалил фото/видео от ${displayName} — новичок начинает сразу с медиа. Похоже на спам.`,
                 buttons: replyMarkup
             });
         } catch (error) {

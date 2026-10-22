@@ -1,5 +1,6 @@
 import { Api } from 'telegram';
 import { formatIso } from '../utils/dates.js';
+import { buildDisplayName } from '../utils/format.js';
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 
@@ -151,13 +152,26 @@ class ServiceClient {
 
             // Кикаем удалённые (заблокированные Telegram) аккаунты
             var meId = await this.#getMeId();
+            var adminId = process.env.ADMIN_ID;
+            var kickedNames = [];
             for (var user of users) {
                 if (user.deleted) {
                     var kickResult = await this.#kickUser(user.id.toString());
                     if (kickResult.success) {
                         await this.#db.markKicked(user.id.toString(), meId);
+                        kickedNames.push(buildDisplayName(user.id.toString(), user));
                     }
                     console.log(`Kicked deleted account ${user.id}:`, kickResult.success ? 'ok' : kickResult.error);
+                }
+            }
+
+            if (kickedNames.length > 0 && adminId) {
+                try {
+                    await this.#client.sendMessage(adminId, {
+                        message: `Удалил удалённые аккаунты (${kickedNames.length}):\n${kickedNames.join('\n')}`
+                    });
+                } catch (e) {
+                    console.error('Failed to notify admin about kicked accounts:', e);
                 }
             }
 
