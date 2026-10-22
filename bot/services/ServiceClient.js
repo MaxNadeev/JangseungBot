@@ -11,20 +11,46 @@ class ServiceClient {
     #meId = null;
     #deletedKicked = 0;
     #notifyClient = null;
+    #onStage = null;
 
-    constructor(client, db, groupId, notifyClient = null) {
+    constructor(client, db, groupId, notifyClient = null, onStage = null) {
         this.#client = client;
         this.#db = db;
         this.#groupId = groupId;
         this.#notifyClient = notifyClient;
+        this.#onStage = onStage;
     }
 
     get deletedKicked() {
         return this.#deletedKicked;
     }
 
+    /**
+     * Сообщает о переходе на этап пересчёта (для прогресс-индикатора админу).
+     * Ошибки прогресса не должны ронять сам пересчёт.
+     * @param {string} label - текст этапа
+     */
+    async #reportStage(label) {
+        if (!this.#onStage) return;
+        try {
+            await this.#onStage(label);
+        } catch (e) {
+            // ignore
+        }
+    }
+
     async #saveParticipantsToDB(participants, type = 'member') {
         try {
+            // Этап: перебор участников/банов/киков/админов
+            var stageLabel = {
+                member: 'Перебираю участников…',
+                banned: 'Перебираю баны…',
+                kicked: 'Перебираю кики…',
+                admin: 'Перебираю админов…'
+            }[type];
+            if (stageLabel) {
+                await this.#reportStage(stageLabel);
+            }
             
             var updatedOn = formatIso();
             for (var participant of participants) {
@@ -179,6 +205,9 @@ class ServiceClient {
             var { users, participants: participantsRaw } = await this.#fetchParticipantsPages(
                 new Api.ChannelParticipantsSearch({ q: '' })
             );
+
+            // Этап: получение участников + удаление удалённых аккаунтов
+            await this.#reportStage('Получаю участников, удаляю удалённые аккаунты…');
 
             // userId -> unix-время входа (секунды)
             var joinDateMap = new Map();

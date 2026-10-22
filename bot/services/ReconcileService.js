@@ -13,20 +13,86 @@ class ReconcileService {
         this.botClient = botClient;
     }
 
+    /**
+     * Прогресс-репортёр: одно редактируемое сообщение админу с индикатором из 10 кубиков.
+     * update(text) — рисует бар с текущим прогрессом; stage(label) — продвигает на +2 кубика (20%).
+     * @returns {{update: Function, stage: Function}}
+     */
+    #makeProgressReporter() {
+        var bot = this.botClient;
+        var adminId = process.env.ADMIN_ID;
+
+        if (!bot || !adminId) {
+            return { update: async () => {}, stage: async () => {} };
+        }
+
+        var msgId = null;
+        var done = 0;
+        var totalStages = 5;
+
+        var render = (text) => {
+            var filled = done * 2;
+            var bar = '🟩'.repeat(filled) + '⬛'.repeat(10 - filled);
+            return bar + '\n' + text;
+        };
+
+        var sendOrEdit = async (text) => {
+            try {
+                if (msgId != null) {
+                    await bot.editMessage(adminId, { message: msgId, text });
+                } else {
+                    var sent = await bot.sendMessage(adminId, { message: text });
+                    msgId = sent && sent.id ? sent.id : null;
+                }
+            } catch (e) {
+                console.error('[ReconcileService] progress edit error:', e && e.message);
+                // если edit упал (сообщение удалено) — пробуем отправить заново
+                try {
+                    var sent2 = await bot.sendMessage(adminId, { message: text });
+                    msgId = sent2 && sent2.id ? sent2.id : null;
+                } catch (e2) {
+                    console.error('[ReconcileService] progress send error:', e2 && e2.message);
+                }
+            }
+        };
+
+        return {
+            update: async (text) => { await sendOrEdit(render(text)); },
+            stage: async (label) => {
+                done = Math.min(done + 1, totalStages);
+                await sendOrEdit(render(label));
+            }
+        };
+    }
+
+    async #notifyOnce(text) {
+        if (!this.botClient || !process.env.ADMIN_ID) return;
+        try {
+            await this.botClient.sendMessage(process.env.ADMIN_ID, { message: text });
+        } catch (e) {
+            console.error('[ReconcileService] notify error:', e && e.message);
+        }
+    }
+
     async recountWithUserSession(db, groupId, profileManager) {
         if (this.isRunning) {
+            await this.#notifyOnce('⚠️ Апдейт уже выполняется, подождите.');
             return { success: false, error: 'Апдейт уже выполняется' };
         }
         this.isRunning = true;
         var started = Date.now();
+        var progress = this.#makeProgressReporter();
 
         try {
+            await progress.update('Подключаюсь к клиенту…');
+
             var session = process.env.CLIENT_SESSION || '';
             console.log('[ReconcileService] process.env.CLIENT_SESSION длина:', session.length);
             console.log('[ReconcileService] process.env.CLIENT_SESSION первые 50 символов:', session.substring(0, 50));
-            
+
             if (!session) {
                 console.error('[ReconcileService] CLIENT_SESSION пуста в process.env');
+                await progress.update('❌ Ошибка: нет сессии клиента');
                 return { success: false, error: 'нет сессии клиента' };
             }
 
@@ -55,10 +121,14 @@ class ReconcileService {
             if (!authorized) {
                 console.error('[ReconcileService] Клиент не авторизован. Сессия устарела или невалидна.');
                 await client.destroy().catch(() => {});
+                await progress.update('❌ Ошибка: сессия устарела или невалидна');
                 return { success: false, error: 'сессия клиента устарела или невалидна' };
             }
 
-            var serviceClient = new ServiceClient(client, db, groupId, this.botClient);
+            var serviceClient = new ServiceClient(
+                client, db, groupId, this.botClient,
+                (label) => progress.stage(label)
+            );
             var members = await serviceClient.getRecentParticipants();
             var banned = await serviceClient.getRestrictedParticipants('banned');
             var kicked = await serviceClient.getRestrictedParticipants('kicked');
@@ -72,6 +142,9 @@ class ReconcileService {
             // _updateLoop клиента пересчёта остановился и не слал TIMEOUT-пинги.
             await client.destroy().catch(() => {});
 
+            var seconds = Math.round((Date.now() - started) / 1000);
+            await progress.update(`✅ Апдейт выполнен: участников ${members.length}, банов ${banned.length}, киков ${kicked.length}, админов ${admins.length}, удалено удалённых аккаунтов ${serviceClient.deletedKicked}, ${seconds} сек.`);
+
             return {
                 success: true,
                 members: members.length,
@@ -79,11 +152,13 @@ class ReconcileService {
                 kicked: kicked.length,
                 admins: admins.length,
                 deleted: serviceClient.deletedKicked,
-                seconds: Math.round((Date.now() - started) / 1000)
+                seconds: seconds
             };
         } catch (error) {
             console.error('ReconcileService error:', error);
-            return { success: false, error: error.message };
+            var errMsg = error && error.message ? error.message : String(error);
+            await progress.update('❌ Ошибка: ' + errMsg);
+            return { success: false, error: errMsg };
         } finally {
             this.isRunning = false;
         }

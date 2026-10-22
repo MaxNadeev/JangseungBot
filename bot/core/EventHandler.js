@@ -235,17 +235,8 @@ class EventHandler {
      * @returns {Promise<void>}
      */
     async runUpdate() {
-        await this.botClient.sendMessage(this.adminId, { message: 'Апдейт запущен…' });
-        var result = await this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
-        if (result.success) {
-            await this.botClient.sendMessage(this.adminId, {
-                message: `Апдейт выполнен: участников ${result.members}, банов ${result.banned}, киков ${result.kicked}, админов ${result.admins}, удалено удалённых аккаунтов ${result.deleted}, ${result.seconds} сек.`
-            });
-        } else {
-            await this.botClient.sendMessage(this.adminId, {
-                message: `Ошибка апдейта: ${result.error}`
-            });
-        }
+        // Прогресс и финальный отчёт шлёт сам ReconcileService (одним редактируемым сообщением).
+        await this.reconcileService.recountWithUserSession(this.db, this.groupId, this.profileManager);
     }
 
     /**
