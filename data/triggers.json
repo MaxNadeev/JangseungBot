@@ -186,6 +186,6 @@
     "inactiveDays": 365,
     "inactiveMaxMessages": 1,
     "inactiveBatchSize": 10,
-    "recountIntervalHours": 24
+    "recountIntervalHours": 8
   }
 }

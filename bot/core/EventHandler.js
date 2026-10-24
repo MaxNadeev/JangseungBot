@@ -596,16 +596,27 @@ class EventHandler {
             const userId = data.split('_')[1];
             const action = data.split('_')[0];
 
+            // Получаем displayName (ID, @username, Имя Фамилия)
+            var displayName = buildDisplayName(userId, null);
+            try {
+                var userResult = await this.botService.getUserFromAPI(userId);
+                if (userResult.success) {
+                    displayName = buildDisplayName(userId, userResult.user);
+                }
+            } catch (e) {
+                // не критично — остаётся ID
+            }
+
             if (action === 'unban') {
                 await this.botService.unbanUser(this.groupId, userId);
                 await this.db.clearRestriction(userId);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `Пользователь ${userId} разбанен`
+                    message: `${displayName} разбанен`
                 });
             } else if (action === 'ban') {
                 await this.botService.banUser(this.groupId, userId);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `Пользователь ${userId} был ограничен`
+                    message: `${displayName} был ограничен`
                 });
             } else if (action === 'allow') {
                 // Помечаем пользователя как доверенного (в profiles и в users)
@@ -614,7 +625,7 @@ class EventHandler {
                 }
                 await this.db.setTrusted(userId, 1);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `Пользователь ${userId} добавлен в белый список`
+                    message: `${displayName} добавлен в белый список`
                 });
             }
 
