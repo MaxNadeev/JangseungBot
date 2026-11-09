@@ -64,6 +64,34 @@ class EventHandler {
     }
 
     /**
+     * Проверяет, является ли сообщение от спам-бота
+     * @private
+     * @param {Object} message - Объект сообщения
+     * @param {string} userId - ID отправителя
+     * @returns {Promise<boolean>} true если это спам-бот
+     */
+    async #isSpamBot(message, userId) {
+        // Проверка 1: viaBotId должен быть null
+        if (message.viaBotId !== null) {
+            return false;
+        }
+        
+        // Проверка 2: media.className должен быть MessageMediaUnsupported
+        if (message.media?.className !== 'MessageMediaUnsupported') {
+            return false;
+        }
+        
+        // Проверка 3: бот НЕ является участником группы
+        var isMember = await this.botService.isMemberOfGroup(userId);
+        if (isMember) {
+            return false;
+        }
+        
+        console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] Spam bot detected:`, userId);
+        return true;
+    }
+
+    /**
      * Обрабатывает новое сообщение
      * @async
      * @method
@@ -73,7 +101,8 @@ class EventHandler {
     async handleNewMessage(update) {
         try {
             var message = update.message;
-            console.log(`\n${new Date().toLocaleString('ru-ru')} `, message);
+            console.log(`${new Date().toLocaleString('ru-ru')} peerId:`, message.peerId.channelId, `fromId:`, message.fromId?.userId?.value?.toString(), `messageId:`, message.id, `className:`, message.className);
+            console.log(`\n${new Date().toLocaleString('ru-ru')} update:\n`, update);
             
             var className = message.className;
 
@@ -98,6 +127,13 @@ class EventHandler {
                 console.log(`\n${new Date().toLocaleString('ru-ru')} message:`, update.message.message);
                 var userId = message.fromId?.userId?.value?.toString();
                 if (!userId) return;
+                
+                // Проверка спам-бота с невидимым текстом
+                if (await this.#isSpamBot(message, userId)) {
+                    console.log(`${new Date().toLocaleString('ru-ru')} Spam bot message detected from:`, userId);
+                    await this.handleTriggerMessage(message, userId, update);
+                    return;
+                }
                 
                 // Отложенное сообщение (отправитель не в группе) → автоудаление
                 if (await this.#handleScheduledMessage(userId, message)) {
@@ -156,7 +192,7 @@ class EventHandler {
                 }
                 
                 console.log(`${new Date().toLocaleString('ru-ru')} checkMessage...`);
-                var hasProblem = this.inspector.сheckMessage(message.message, userMsgCount);
+                var hasProblem = this.inspector.сheckMessage(message, userMsgCount);
                 console.log(`${new Date().toLocaleString('ru-ru')} hasProblem: `, hasProblem);
                 
                 if (!hasProblem) {
@@ -167,7 +203,7 @@ class EventHandler {
                 
                 // Триггер: сообщение удаляется — НЕ считаем
                 console.log(`${new Date().toLocaleString('ru-ru')} Trigger detected in message:`, message.message);
-                await this.handleTriggerMessage(message, userId);
+                await this.handleTriggerMessage(message, userId, update);
             } else {
                 console.log(`\n${new Date().toLocaleString('ru-ru')} className === ${className}\nupdate: ${JSON.stringify(update, null, 2)}\n`);
             }
@@ -315,9 +351,15 @@ class EventHandler {
             var userInfo = null;
             
             if (userId) {
-                var apiResult = await this.botService.getUserFromAPI(userId);
-                if (apiResult.success) {
-                    userInfo = apiResult.user;
+                // Пробуем получить из API, если не получается - не критично
+                try {
+                    var apiResult = await this.botService.getUserFromAPI(userId);
+                    if (apiResult.success) {
+                        userInfo = apiResult.user;
+                    }
+                } catch (e) {
+                    // Если не удалось получить - ответим без имени
+                    console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] Could not get user info for /hi:`, e.message);
                 }
             }
             
@@ -370,9 +412,10 @@ class EventHandler {
      * @method
      * @param {Object} message - Триггерное сообщение
      * @param {string} userId - ID пользователя
+     * @param {Object} update - Объект обновления (для получения данных пользователя)
      * @returns {Promise<void>}
      */
-    async handleTriggerMessage(message, userId) {
+    async handleTriggerMessage(message, userId, update = null) {
         console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] message:`, message);
         try {            
             // Удаляем сообщение
@@ -382,32 +425,71 @@ class EventHandler {
             );
             
             if (deleteResult.success) {
-                const buttonRestrict = new Api.KeyboardButtonCallback({
-                    text: 'Ограничить',
-                    data: Buffer.from(`ban_${userId}`),
-                });
+                // Проверяем, является ли это bot-mention спамом
+                var userData = await this.botService.getUserFromDB(userId);
+                var userMsgCount = userData.success ? (userData.user.msgCount || 0) : 0;
+                var isBotMentionSpam = this.inspector.isBotMentionSpam(
+                    message.entities, 
+                    message.message, 
+                    userMsgCount
+                );
 
-                const buttonAllow = new Api.KeyboardButtonCallback({
-                    text: 'Доверять',
-                    data: Buffer.from(`allow_${userId}`),
-                });
+                // Получаем полную информацию о пользователе
+                // Сначала пробуем из update._entities (для ботов вне группы)
+                var userInfo = null;
+                if (update && update._entities) {
+                    var userEntity = update._entities.get(userId);
+                    if (userEntity) {
+                        userInfo = {
+                            username: userEntity.username || null,
+                            firstName: userEntity.firstName || null,
+                            lastName: userEntity.lastName || null
+                        };
+                    }
+                }
                 
-                const buttons = [buttonRestrict, buttonAllow];
-                const row = new Api.KeyboardButtonRow({ buttons });
+                // Если не нашли в update._entities, пробуем getUserFromAPI
+                if (!userInfo || (!userInfo.username && !userInfo.firstName)) {
+                    var apiResult = await this.botService.getUserFromAPI(userId);
+                    if (apiResult.success) {
+                        userInfo = apiResult.user;
+                    }
+                }
                 
-                const replyMarkup = new Api.ReplyInlineMarkup({
-                    rows: [row],
-                });
-
-                // Получаем полную информацию о пользователе из API
-                var userInfo = await this.botService.getUserFromAPI(userId);
                 var displayName = buildDisplayName(userId, userInfo);
 
-                // Отправляем сообщение с кнопкой
-                await this.botClient.sendMessage(this.adminId, {
-                    message: `Удалил сообщение от ${displayName}:\n${message.message}`,
-                    buttons: replyMarkup
-                });
+                if (isBotMentionSpam) {
+                    // Автоматический бан без кнопок
+                    await this.botService.banUser(this.groupId, userId);
+                                        
+                    await this.botClient.sendMessage(this.adminId, {
+                        message: `✋🗑️ Лишил прав и удалил сообщение от ${displayName} — вызов ботов на старте.\n${message.message}`
+                    });
+                } else {
+                    // Обычный триггер - с кнопками
+                    const buttonRestrict = new Api.KeyboardButtonCallback({
+                        text: 'Ограничить',
+                        data: Buffer.from(`ban_${userId}`),
+                    });
+
+                    const buttonAllow = new Api.KeyboardButtonCallback({
+                        text: 'Доверять',
+                        data: Buffer.from(`allow_${userId}`),
+                    });
+                    
+                    const buttons = [buttonRestrict, buttonAllow];
+                    const row = new Api.KeyboardButtonRow({ buttons });
+                    
+                    const replyMarkup = new Api.ReplyInlineMarkup({
+                        rows: [row],
+                    });
+
+                    // Отправляем сообщение с кнопками
+                    await this.botClient.sendMessage(this.adminId, {
+                        message: `🗑️ Удалил сообщение от ${displayName}:\n${message.message}`,
+                        buttons: replyMarkup
+                    });
+                }
             } else {
                 console.error(`${new Date().toLocaleString('ru-ru')} [EventHandler] Failed to delete message:`, deleteResult.error);
             }
@@ -446,7 +528,7 @@ class EventHandler {
                 await this.botService.deleteMessage(this.groupId, message.id);
                 var displayName = buildDisplayName(userId, dbUser.data);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `Удалил отложенное сообщение от ${displayName} (пользователь не в группе)`
+                    message: `🗑️ Удалил отложенное сообщение от ${displayName} (пользователь не в группе)`
                 });
                 return true;
             }
@@ -500,12 +582,19 @@ class EventHandler {
             const row = new Api.KeyboardButtonRow({ buttons: [buttonRestrict, buttonAllow] });
             const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
 
-            // Получаем полную информацию о пользователе из API
-            var userInfo = await this.botService.getUserFromAPI(userId);
-            var displayName = buildDisplayName(userId, userInfo);
+            // Получаем полную информацию о пользователе
+            var displayName = buildDisplayName(userId, null);
+            try {
+                var userInfo = await this.botService.getUserFromAPI(userId);
+                if (userInfo.success) {
+                    displayName = buildDisplayName(userId, userInfo.user);
+                }
+            } catch (e) {
+                // не критично — остаётся ID
+            }
 
             await this.botClient.sendMessage(this.adminId, {
-                message: `Удалил фото/видео от ${displayName} — новичок начинает сразу с медиа. Похоже на спам.`,
+                message: `🗑️ Удалил фото/видео от ${displayName} — новичок начинает сразу с медиа. Похоже на спам.`,
                 buttons: replyMarkup
             });
         } catch (error) {
@@ -540,10 +629,21 @@ class EventHandler {
      * @returns {Promise<void>}
      */
     async sayHello(userId, isNew) {
-        var apiResult = await this.botService.getUserFromAPI(userId);
-        var username = apiResult.success ? apiResult.user.username : null;
-        var firstName = apiResult.success ? apiResult.user.firstName : null;
-        var lastName = apiResult.success ? apiResult.user.lastName : null;
+        var username = null;
+        var firstName = null;
+        var lastName = null;
+        
+        try {
+            var apiResult = await this.botService.getUserFromAPI(userId);
+            if (apiResult.success) {
+                username = apiResult.user.username;
+                firstName = apiResult.user.firstName;
+                lastName = apiResult.user.lastName;
+            }
+        } catch (e) {
+            // Если не удалось получить - приветствуем без имени
+            console.log(`${new Date().toLocaleString('ru-ru')} [EventHandler] Could not get user info for greeting:`, e.message);
+        }
 
         var name = [firstName, lastName].filter(Boolean).join(' ');
         var at = username ? `@${String(username).replace(/^@/, '')}` : null;
@@ -597,26 +697,48 @@ class EventHandler {
             const action = data.split('_')[0];
 
             // Получаем displayName (ID, @username, Имя Фамилия)
+            // Пробуем несколько источников для получения информации о пользователе
             var displayName = buildDisplayName(userId, null);
+            
+            // 1. Пробуем получить из БД (там могли сохраниться данные)
             try {
-                var userResult = await this.botService.getUserFromAPI(userId);
-                if (userResult.success) {
-                    displayName = buildDisplayName(userId, userResult.user);
+                var dbUser = await this.botService.getUserFromDB(userId);
+                if (dbUser.success && dbUser.user) {
+                    var userInfo = {
+                        username: dbUser.user.username || null,
+                        firstName: dbUser.user.firstName || null,
+                        lastName: dbUser.user.lastName || null
+                    };
+                    if (userInfo.username || userInfo.firstName) {
+                        displayName = buildDisplayName(userId, userInfo);
+                    }
                 }
             } catch (e) {
-                // не критично — остаётся ID
+                // не критично, пробуем дальше
+            }
+            
+            // 2. Если из БД ничего не получили, пробуем из API
+            if (displayName === `ID: ${userId}`) {
+                try {
+                    var userResult = await this.botService.getUserFromAPI(userId);
+                    if (userResult.success) {
+                        displayName = buildDisplayName(userId, userResult.user);
+                    }
+                } catch (e) {
+                    // не критично — остаётся ID
+                }
             }
 
             if (action === 'unban') {
                 await this.botService.unbanUser(this.groupId, userId);
                 await this.db.clearRestriction(userId);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `${displayName} разбанен`
+                    message: `👌 ${displayName} разбанен`
                 });
             } else if (action === 'ban') {
                 await this.botService.banUser(this.groupId, userId);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `${displayName} был ограничен`
+                    message: `✋ ${displayName} был ограничен`
                 });
             } else if (action === 'allow') {
                 // Помечаем пользователя как доверенного (в profiles и в users)
@@ -625,14 +747,14 @@ class EventHandler {
                 }
                 await this.db.setTrusted(userId, 1);
                 await this.botClient.sendMessage(this.adminId, {
-                    message: `${displayName} добавлен в белый список`
+                    message: `✔️ ${displayName} добавлен в белый список`
                 });
             }
 
             // Ответим на callback, чтобы убрать "часики" у кнопки
             await this.botClient.invoke(new Api.messages.SetBotCallbackAnswer({
                 queryId: update.queryId,
-                message: 'Действие выполнено',
+                message: '👌 Действие выполнено',
                 alert: false
             }));
 

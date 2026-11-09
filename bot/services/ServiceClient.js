@@ -252,7 +252,7 @@ class ServiceClient {
             if (kickedNames.length > 0 && adminId) {
                 try {
                     await notifyClient.sendMessage(adminId, {
-                        message: `Удалил удалённые аккаунты (${kickedNames.length}):\n${kickedNames.join('\n')}`
+                        message: `⛔ Удалил удалённые аккаунты (${kickedNames.length}):\n${kickedNames.join('\n')}`
                     });
                 } catch (e) {
                     console.error(`${new Date().toLocaleString('ru-ru')} [ServiceClient] Failed to notify admin about kicked accounts:`, e);

@@ -280,6 +280,7 @@ class ServiceBot {
             );
             return { success: true };
         } catch (error) {
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error banning user:`, error);
             return { success: false, error: error.message };
         }
     }
@@ -302,6 +303,7 @@ class ServiceBot {
             );
             return { success: true };
         } catch (error) {
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error unbanning user:`, error);
             return { success: false, error: error.message };
         }
     }
@@ -323,6 +325,7 @@ class ServiceBot {
             );
             return { success: true };
         } catch (error) {
+            console.error(`${new Date().toLocaleString('ru-ru')} [ServiceBot] Error kicking user:`, error);
             return { success: false, error: error.message };
         }
     }

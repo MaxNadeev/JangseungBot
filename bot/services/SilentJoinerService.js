@@ -74,13 +74,34 @@ class SilentJoinerService {
 
     async #notifyAdmin(userId) {
         var displayName = buildDisplayName(userId, null);
+        
+        // 1. Пробуем получить из БД (там могли сохраниться данные)
         try {
-            var userResult = await this.botService.getUserFromAPI(userId);
-            if (userResult.success) {
-                displayName = buildDisplayName(userId, userResult.user);
+            var dbUser = await this.db.getUser(userId);
+            if (dbUser.success && dbUser.data) {
+                var userInfo = {
+                    username: dbUser.data.username || null,
+                    firstName: dbUser.data.firstName || null,
+                    lastName: dbUser.data.lastName || null
+                };
+                if (userInfo.username || userInfo.firstName) {
+                    displayName = buildDisplayName(userId, userInfo);
+                }
             }
         } catch (e) {
-            // не критично — остаётся ID
+            // не критично, пробуем дальше
+        }
+        
+        // 2. Если из БД ничего не получили, пробуем из API
+        if (displayName === `ID: ${userId}`) {
+            try {
+                var userResult = await this.botService.getUserFromAPI(userId);
+                if (userResult.success) {
+                    displayName = buildDisplayName(userId, userResult.user);
+                }
+            } catch (e) {
+                // не критично — остаётся ID
+            }
         }
 
         const buttonUnban = new Api.KeyboardButtonCallback({
@@ -95,7 +116,7 @@ class SilentJoinerService {
         const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
 
         await this.botService.bot.sendMessage(this.adminId, {
-            message: `Лишил прав ${displayName} — ни одного сообщения`,
+            message: `✋ Лишил прав ${displayName} — ни одного сообщения`,
             buttons: replyMarkup
         });
     }
