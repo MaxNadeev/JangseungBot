@@ -465,11 +465,23 @@ class EventHandler {
                 var displayName = buildDisplayName(userId, userInfo);
 
                 if (isBotMentionSpam) {
-                    // Автоматический бан без кнопок
+                    // Автоматический бан с кнопками
                     await this.botService.banUser(this.groupId, userId);
-                                        
+
+                    const buttonUnban = new Api.KeyboardButtonCallback({
+                        text: 'Разбан',
+                        data: Buffer.from(`unban_${userId}`),
+                    });
+                    const buttonAllow = new Api.KeyboardButtonCallback({
+                        text: 'Доверять',
+                        data: Buffer.from(`allow_${userId}`),
+                    });
+                    const row = new Api.KeyboardButtonRow({ buttons: [buttonUnban, buttonAllow] });
+                    const replyMarkup = new Api.ReplyInlineMarkup({ rows: [row] });
+
                     await this.botClient.sendMessage(this.adminId, {
-                        message: `✋🗑️ Лишил прав и удалил сообщение от ${displayName} — вызов ботов на старте.\n${message.message}`
+                        message: `✋🗑️ Лишил прав и удалил сообщение от ${displayName} — вызов ботов на старте.\n${message.message}`,
+                        buttons: replyMarkup
                     });
                 } else {
                     // Обычный триггер - с кнопками
