@@ -37,9 +37,9 @@ class Inspector {
                 triggers.linkIndicators.forEach(link => 
                     this.linkIndicators.add(link.toLowerCase()));
                 
-                // Загрузка символов
+                // Загрузка символов (нормализуем в нижний регистр для регистронезависимой проверки)
                 triggers.symbols.forEach(symbol => 
-                    this.symbols.add(symbol));
+                    this.symbols.add(symbol.toLowerCase()));
                 
                 this.minLength = triggers.additionalRules?.minLength || null;
                 this.minMessages = triggers.additionalRules?.minMessages || null;
@@ -209,9 +209,9 @@ class Inspector {
             return false;
         }
 
-        // ШЕСТАЯ ПРОВЕРКА: символы
+        // ШЕСТАЯ ПРОВЕРКА: символы (регистронезависимо)
         for (var symbol of this.symbols) {
-            if (text.includes(symbol)) {
+            if (normalizedText.includes(symbol)) {
                 console.log(`${new Date().toLocaleString('ru-ru')} trigger symbol:`, symbol);
                 return true;
             }

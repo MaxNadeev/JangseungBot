@@ -103,6 +103,11 @@ class EventHandler {
             var message = update.message;
             console.log(`${new Date().toLocaleString('ru-ru')} peerId:`, message.peerId.channelId, `fromId:`, message.fromId?.userId?.value?.toString(), `messageId:`, message.id, `className:`, message.className);
             console.log(`\n${new Date().toLocaleString('ru-ru')} update:\n`, update);
+            if (message.entities) { 
+                for (var entity of message.entities) { 
+                    console.log(`${new Date().toLocaleString('ru-ru')} entity:\n`, entity.className, entity + '\n');
+                }
+            }
             
             var className = message.className;
 
@@ -165,8 +170,9 @@ class EventHandler {
                     return;
                 }
                 
-                // Пустые сообщения и ответы на приветствие не проверяем, но считаем
-                if (!message.message || message.replyTo) {
+                // Пустые сообщения не проверяем, но считаем.
+                // Ответы (reply) проверяем как обычные сообщения — спам часто приходит ответом.
+                if (!message.message) {
                     await this.db.incrementUserMessage(userId);
                     return;
                 }
